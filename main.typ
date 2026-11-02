@@ -156,9 +156,9 @@ Local matching methods define a cost to compare candidate correspondences using 
 
 Classical stereo matching algorithms perform the following steps: matching cost computation, cost aggregation, disparity computation/optimization, and disparity refinement #todo[is this also true for 3D?]. Matching algorithms need to aggregate many candidate hypotheses across the epipolar line. To estimate a depth map, every depth hypothesis needs to be tested for every pixel. The cost computation calculates a cost for all hypotheses O(W*H*D) and stores them in a cost volume. In this case the depth-range on which the cost is computed is bounded. The cost volume quickly grows by introducing higher resolution images, or by requiring higher precision depth estimates at a larger range.
 
-Computing the cost volume is regularly done by plane sweeping #todo[cite yang_cvpr03_plane_sweeping_demo.pdf and collins_robert_1996_1.pdf]. In its simplest form a plane parallel to the reference image plane, sweeps through the depth range. At each step all neighbor images are projected onto this plane and the pixel similarities are calculated using some cost function such as averaging Sum-of-Squared Differences (SSD). In the winner-takes-all approach the cost volume is not aggregated and stored but each pixel is updated to carry the currently lowest cost found. Note that plane sweeping carries a fronto-parallel bias, i.e., the search window has an implicit assumption that the corresponding surface is flat and parallel to the reference image plane @gipuma. To improve reconstruction of slanted surfaces #todo[cite gallup 2007] adds several sweep directions. 
+Computing the cost volume is regularly done by plane sweeping @yang2003_realtime_stereo_gpu @collins1996_space_sweep. In its simplest form a plane parallel to the reference image plane, sweeps through the depth range. At each step all neighbor images are projected onto this plane and the pixel similarities are calculated using some cost function such as averaging Sum-of-Squared Differences (SSD). In the winner-takes-all approach the cost volume is not aggregated and stored but each pixel is updated to carry the currently lowest cost found. Note that plane sweeping carries a fronto-parallel bias, i.e., the search window has an implicit assumption that the corresponding surface is flat and parallel to the reference image plane @gipuma. To improve reconstruction of slanted surfaces @gallup2007_plane_sweeping adds several sweep directions. 
 
-The same problem arises in modern learned MVS approaches, where the cost volume is calculated by a neural network using learned features and regularisation. Methods such as #todo[cite rmvsnet2019 and casmvsnet.pdf] can still only compute the depth at a much lower resolution or over a low precision depth range, and has to fine-tune these through costly refinement approaches.
+The same problem arises in modern learned MVS approaches, where the cost volume is calculated by a neural network using learned features and regularisation. Methods such as @yao2019_rmvsnet @gu2020_casmvsnet can still only compute the depth at a much lower resolution or over a low precision depth range, and has to fine-tune these through costly refinement approaches.
 
 /*
 - reference image -> the image being reconstructed
@@ -199,11 +199,11 @@ Per reference image, cost is pixels × source views × patch taps × iterations 
 //  Kriegel et al. 2017:
 // - It's in Knowledge and Information Systems 52:341–378 and labelled as a survey paper. Its key line: runtimes of one algorithm "can differ by several orders of magnitude due to implementation differences, without actual algorithmic differences". It also argues for exactly your design: compare implementations in the same framework, at the same level of optimisation. Their field is clustering and outlier detection, so cite it as the general precedent, with your thesis as the MVS case.
 
-Every depth-map MVS program in this thesis follows the same stages for computing a 3D point cloud. @colmap_mvs
-1. For each _reference image_ $I_r$, an *image-level view selection* algorithm finds $N$ neighboring _source images_ $I_n$ from all images $M$ where $n <contains> N <contains> M$.
-2. Given a reference image and its source images, patch-match-based algorithm iteratively *estimates a depth and a normal map*.
-3. unreliable or inconsistent estimates are filtered out
-4. Consistent reference and source pixels from the depth maps are fused together into a single 3D point cloud
+Every depth-map MVS program in this thesis follows the same stages to compute a 3D point cloud @colmap_mvs:
++ For each _reference image_ $I_r$, an *image-level view selection* algorithm selects $N$ neighbouring _source images_ $I_n$, $n in cal(N)(r)$, from the set of all images $cal(M) = {1, dots, M}$, where $cal(N)(r) subset cal(M) without {r}$ and $|cal(N)(r)| = N$.
++ Given a reference image and its source images, a patch-match-based algorithm iteratively *estimates a depth map and a normal map*.
++ Unreliable or inconsistent estimates are filtered out.
++ Consistent reference and source pixels from the depth maps are fused into a single 3D point cloud.
 
 
 
