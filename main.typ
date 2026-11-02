@@ -81,22 +81,6 @@ Gipuma said the same of KITTI and Middlebury in 2015. Middlebury v3 and KITTI sh
 
 - The thesis claims that many of the algorithms slowness comes from implementation inefficiency inherited from the lineage of the developing algorithm family.
 
-/* BACKGROUND */
-/* ---------- */
-
-- early 3D reconstruction algorithms were inefficient because they were using large cost-volumes to store costs for the optimization problem. Voxel-based 3D reconstructions discretise the scene into a voxel grid. Their accuracy is bounded by voxel grid's resolution. Large-scale high resolution reconstruction is infeasible due to the cubic memory growth in the grid resolution #todo[cite steven1999_voxel_coloring.pdf]. Also MVS problems require going through all pixels in all images and matching that with other pixels in other images which is a really compute-intensive task. with the huge leaps in GPU technology in the last decade there has been a great demand for highly parallel MVS algorithms that can map to GPUs efficiently. But GPUs generally have limitations on the amount of memory that they can utilize thus limiting the scale of the 3D reconstruction problem.
-- patch match history:
-  - PatchMatch algorithm for interactive editing: Barnes et al. 2009
-  - Bleyer 2011 slanted planes for stereo, strictly sequential, authors call a GPU port an obvious idea but they didn't do it
-  - bailer 2012: row column paralellize (useful info: their depth-map filtering step is dominated by I/O which a production ready implementation can easily resolve by background i/o threads)
-  - shen 2013: same seemingly independent paper moving patchmatch from two-views into multi-view. In a sentence, we can state that "Bailer2012 and Shen2013 carried PatchMatch from two-view stereo to multi-view stereo"
-  - zhen 2014: single-neighbor alternating sweeps on GPU then they implemented a parallel version of this algorithm that could paralellize across 1 axis of images at the time, doing sweeps.
-  - COLMAP uses Zheng sweeps
-  - Gipuma 2015: 50s -> 2.7s, a paper with great focus on PatchMatch efficiency, introduced the checkerboard propagation which created a highly efficient MVS algorithm. They also have a fast mode that uses algorithmic approximation
-
-//  Kriegel et al. 2017:
-// - It's in Knowledge and Information Systems 52:341–378 and labelled as a survey paper. Its key line: runtimes of one algorithm "can differ by several orders of magnitude due to implementation differences, without actual algorithmic differences". It also argues for exactly your design: compare implementations in the same framework, at the same level of optimisation. Their field is clustering and outlier detection, so cite it as the general precedent, with your thesis as the MVS case.
-
 ----------------------------------------
 
 problem formulation, claims, RQs, contributions from thesis itself and how the thesis is structured
@@ -135,16 +119,15 @@ The goal of 3D reconstruction is to recover a representation of the 3D shape of 
 
 An image-based stereo reconstruction relies on the parallax effect between images from different viewpoints. Given the camera's internal parameters (intrinsic parameters) and its position and orientation (extrinsic parameters) for the viewpoints, a 3D point can be recovered if its 2D projection (a pixel) is known in at least two viewpoints. Structure from Motion (SfM) is one of the fundamental problems in image-based 3D reconstruction. Its goal is to define an optimization problem to find out the camera's intrinsic calibration matrix and to find the camera extrinsics where the images were taken from. SfM methods work by finding many reliable distinct features across images, matching the corresponding features across images, constructing 2D tracks from the matches, solving for the SfM model from the 2D tracks, and finally, refining the model using bundle adjustment #[cite FH15]. Given an initial state for the camera parameters, the optimization can iteratively project the 3D point candidates (calculated from the point correspondences) onto the images, and calculate the error between the point's projected and observed pixel location (reprojection error) @hartley_zisserman_mvg. Nowadays, a widely used open-source tool for SfM and a general 3D reconstruction pipeline is COLMAP @colmap_sfm. A reliable and accurate SfM reconstruction is key for obtaining an accurate dense 3D representation, often requiring sub-pixel level reprojection errors @furukawa2015_mvs_tutorial. SfM pipelines also produce a set of reliable 3D points that is key in dense reconstruction initialization.
 
-In order to obtain a dense representation of the 3D scene an algorithm has to search for all pixel correspondences between views. Given known camera intrinsics and extrinsics, two-views are enough for reconstruction @scharstein2002_taxonomy @tosi2025_deep_stereo_survey. In a two- or multiple-view stereo setup dense stereo correspondences are found with the help of epipolar geometry @hartley_zisserman_mvg. The image of a point on one image is constrained to lie on a line (the epipolar line) on another image which significantly reduces the search space. Thus the stereo correspondence problem is defined as: for each pixel $p_i$ in a reference image $I_r$, find its correspondence on the epipolar line in another image $I_j$.
-
-_Multi-View Stereo_ (MVS) is the extension to more than two images and the focus of this thesis. The input of MVS algorithms is a set of images and their corresponding camera parameters. Using multiple images has many advantages such as
-- several baselines reduce the matching ambiguity leading to more precise reconstruction @okutomi1993_multibaseline
-- a point occluded in one view can potentially be matched in others @furukawa2015_mvs_tutorial
-- frontal views of surfaces often lead to better results. #todo[no citation here, maybe replace, or cite]
-
-There are multiple ways to represent a 3D scene. The result of solving the correspondence problem in MVS methods can be depth maps, point clouds, volumes or meshes. Generally, the quality of an MVS reconstruction highly depends on the quality of its inputs: the images and the camera parameters.
+In order to obtain a dense representation of the 3D scene an algorithm has to search through all pixels between views for correspondences and return the mathcing pixels. Given known camera intrinsics and extrinsics, two-views are enough for reconstruction @scharstein2002_taxonomy @tosi2025_deep_stereo_survey. In a two- or multiple-view stereo setup matches are found with the help of epipolar geometry @hartley_zisserman_mvg. The image of a point on one image is constrained to lie on a line (the epipolar line) on another image which significantly reduces the search space. The general stereo correspondence problem can then be defined as: for each pixel $p_i$ in a reference image $I_r$, find its correspondence on the epipolar line in another image $I_j$ that minimizes the cost.
 
 == Multi-view approaches
+
+/*
+key questions to answer:
+- dense MVS has several family of methods: why depth-map is the choice for large high-resolution scenes?
+- why Patch-Match avoids the problems of plane sweeping and cost volumes?
+- the stages of a typical depth-map MVS program
 
 - taxonomy and MVS method classification
   - voxel / surface evolution
@@ -154,14 +137,57 @@ There are multiple ways to represent a 3D scene. The result of solving the corre
 - learned MVS
 - depth map MVS program structure
   - view selection -> depth+normal estimation -> postprocessing/filtering -> fusion -> point cloud
-  
+*/
+
+_Multi-View Stereo_ (MVS) is the extension to more than two images and the focus of this thesis. The input of MVS algorithms is a set of images and their corresponding camera parameters. High quality of these inputs is crucial for maintaining as any errors in earlier stages such as SfM directly relate to the achievable quality in MVS @furukawa2015_mvs_tutorial. However, using multiple images has many advantages such as
+- several baselines reduce the matching ambiguity leading to more precise reconstruction @okutomi1993_multibaseline
+- a point occluded in one view can potentially be matched in others @furukawa2015_mvs_tutorial
+- frontal views of surfaces often lead to better results. #todo[no citation here, maybe replace, or cite]
+
+The thesis differentiates between two fundamentally different problems when it comes to MVS:
+- small-scene or object centric reconstruction, e.g., typically indoor scanning, or object scanning.
+- large-scene reconstruction,
+
+The former typically considers relatively small-scale indoor scanning, such as rooms, or scanning objects, usually in more controlled environments. Accurate large-scale unstructured outdoor scene reconstructions pose several challenges over these typical cases. One of these challenges is that objects are typically far away from the imaging device, requiring high-resolution images to be used in MVS. Another challenge is that in many cases, due to the size of the imaged objects compared to the distance from them being imaged, a large number of images are required to cover the scene.
+
+Several taxonomies exist to classify the different approaches of MVS #todo[cite seitz_mview_cvpr06] @gipuma. There are two major scene representations: points and surfaces. Voxel-based reconstructions discretise the scene into a voxel grid volume #todo[cite steinbruecker_etal_icra2014] and optionally fit meshes to extract surfaces #todo[cite steven1999_voxel_coloring.pdf]. Their accuracy is bounded by voxel grid's resolution. Large-scale high-resolution reconstruction is difficult due to the cubic memory growth in the grid resolution  @shen2013_patchmatch @furukawa2015_mvs_tutorial. Surface evolution methods start from an initial geometric estimate of the imaged 3D object and iteratively deform the representation (such as a mesh, or a visual hull) to maximize photometric-consistency #todo[cite andrei_transformesh furukawa_carved_visual_hulls hernandez_cviu04_silhouette_stereo_fusion]. These methods require good initialization for the surfaces which doesn't scale well for larger scenes. Implicit geometry representations, such as level-sets, iteratively evolve a volumetric surface function until it's projection minimizes photometric error and added geometric constraints (smooth curves). More modern approaches use learned Signed Distance Functions for an implicit representation #todo[cite deepsdf2019.pdf]. Depth map-based methods go through all images and compute a depth map for each of them individually. These depth maps are then fused together into a 3D point cloud eventually yielding a point representation. The images are independent from each other thus the work can be parallelized without the need for updating a global volume. This formulation scales to a very large number of images and therefore became one of the most dominant choices when it comes to large-scale scenes @furukawa2015_mvs_tutorial. #todo[also include the modern Gaussian Splatting based mesh reconstruction, which scene representation would it be? How about the Nerfs?].
+
+Local matching methods define a cost to compare candidate correspondences using a photometric error that then can be minimized across the epipolar line. This photo-consistency is measuring how similar are two pixels given their surrounding area. However, in many cases the global minimum doesn't yield the true corresponding pixel. Global matching methods extend the cost function to include an objective for all pixels. They enforce properties like smoothness between neighboring pixels based on the assumption that in general surfaces are piecewise smooth. While global matching works well in a two-view case #todo[cite], they don't scale well to multiple images due to their computational cost in large number of high-resolution images @furukawa2010_cmvs @gipuma. Note that MVS problems require going through all pixels in all images and matching that with other pixels in other images which is a really compute-intensive task @gipuma.
+
+- reference image -> the image being reconstructed
+- source images -> the images where we are trying to find the correspondences
+
+- classical stereo matching algorithms perform the following steps: matching cost computation, cost aggregation, disparity computation/optimization, and disparity refinement. 
+- matching algorithms need to evaluate hypothesis for many candidates across the epipolar line. Note that in a two-view case, this is trivial. One can find the epipolar line on the neighbor image, and evaluate all pixels on that line to find a match. It is possible that the point is not visible on the other image which can be filtered out by a threshold on the cost or the strength of the consistency compared to the other candidates. Note that in case of rectified images (the epipolar line is horizontal) with 2000x1000 pixel resolution, in the naive case this means 2000x1999x1000 = 4 billion comparisons and 4 billion entries in a cost volume. Traditionally, global matching methods calculated the dense cost volume in a predefined depth (or disparity) range. There are sparse and memory efficient approximations, and methods that are using image pyramids to densely sample the search space on a lower resolution example, then restrict the search space around the predicted disparities. These methods can be considered local in the search space. It is easy to see how this approach starts to fail in a large-scale outdoor setting. The depth range is unknown and potentially extremely large growing the cost volumes into unbareable sizes unless the precision is limited. 
+
 
 == Patch-Match multi-view stereo
+
+- early 3D reconstruction algorithms were inefficient because they were using large cost-volumes to store costs for the optimization problem.   with the huge leaps in GPU technology in the last decade there has been a great demand for highly parallel MVS algorithms that can map to GPUs efficiently. But GPUs generally have limitations on the amount of memory that they can utilize thus limiting the scale of the 3D reconstruction problem.
+
+- PatchMatch is an algorithm that is
+  - global in the search space
+  - it keeps only a few hypothesis at the same time
+  - it uses the assumption that multiple pixels are present in the scene with similar depth thus a pixel can get good hypotheses by checking neighboring pixels
+  - then it introduces random perturbation to find a slightly better pixel candidate locally
+  - empirically, after multiple iteration, the patch-match algorithm converges to a very good depth estimate.
 
 /*
 4. A cost model
 Per reference image, cost is pixels × source views × patch taps × iterations × passes. The Literature Review can then place each lineage step as “multiplies term X”, using compendium §2.2’s numbers. That turns a list of papers into an argument.
 */
+
+- patch match history:
+  - PatchMatch algorithm for interactive editing: Barnes et al. 2009
+  - Bleyer 2011 slanted planes for stereo, strictly sequential, authors call a GPU port an obvious idea but it is only stated as a future work
+  - bailer 2012: row column paralellize (useful info: their depth-map filtering step is dominated by I/O which a production ready implementation can easily resolve by background i/o threads)
+  - shen 2013: same seemingly independent paper moving patchmatch from two-views into multi-view. In a sentence, we can state that "Bailer2012 and Shen2013 carried PatchMatch from two-view stereo to multi-view stereo"
+  - zhen 2014: single-neighbor alternating sweeps on GPU then they implemented a parallel version of this algorithm that could paralellize across 1 axis of images at the time, doing sweeps.
+  - COLMAP uses Zheng sweeps
+  - Gipuma 2015: 50s -> 2.7s, a paper with great focus on PatchMatch efficiency, introduced the checkerboard propagation which created a highly efficient MVS algorithm. They also have a fast mode that uses algorithmic approximation
+
+//  Kriegel et al. 2017:
+// - It's in Knowledge and Information Systems 52:341–378 and labelled as a survey paper. Its key line: runtimes of one algorithm "can differ by several orders of magnitude due to implementation differences, without actual algorithmic differences". It also argues for exactly your design: compare implementations in the same framework, at the same level of optimisation. Their field is clustering and outlier detection, so cite it as the general precedent, with your thesis as the MVS case.
 
 == GPU execution and performance
 
