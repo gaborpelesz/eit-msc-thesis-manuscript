@@ -1,5 +1,107 @@
 #import "../template/elteikthesis.typ": *
 
+// booktabs-style rules: top, below header, bottom; no vertical lines
+#let _rule(w) = table.hline(stroke: w)
+#let _group(cols, body) = table.cell(colspan: cols, inset: (top: 6pt, bottom: 3pt), emph(body))
+// indent nested phases under their parent span
+#let _sub(depth, name) = h(depth * 1em) + raw(name)
+// subgroup inside a group: tells how often the phases below it occur
+#let _subgroup(cols, body) = table.cell(colspan: cols, inset: (left: 5pt + 1em, top: 5pt, bottom: 2pt),
+  text(size: 8pt, emph(body)))
+
+// #include "measurement-tables.typ"
+#let timing-table = [#figure(
+  kind: table,
+  caption: [
+    The timing measurements recorded for every run, each with a description. On the method level, the measurements are taken by the injected timer tool (described in #ref(<bench-system>)). Nested stages are indented according to their place in algorithms. Some stages of the algorithms can run multiple times per exectuion, such as the reconstruction loop, the reference image pass, or PatchMatch. The \* sign marks algorithm stages that are only present in some methods.
+  ],
+  {
+    set text(size: 9pt)
+    set par(justify: false, leading: 0.5em)
+    table(
+      columns: (auto, 1fr),
+      align: (left + top, left + top),
+      stroke: none,
+      inset: (x: 5pt, y: 3.5pt),
+      _rule(1pt),
+      table.header([*Measurement*], [*Details*]),
+      _rule(0.5pt),
+
+      _group(2)[*Execution level*],
+      [Converter time], [The method's preprocessing dataset conversion.],
+      [Method time], [From starting the container to teardown.],
+      [Time incl. converter], [Total time taken by a single algorithms stack.],
+
+      _group(2)[*Method level*],
+      [reconstruction /* run */], [Time from the start of the reconstruction process until the end. ],
+      _subgroup(2)[*Setup*],
+      [#_sub(1, "") problem parsing /* problem_list */], [Parsing the view-selection file into per-reference-image problems.],
+      [#_sub(1, "") preparation /* scene_scan */], [Such as setting pyramid levels, rounds, or image validation.],
+      [#_sub(1, "") device init /* device_init */], [Selecting the CUDA device; creating CUDA context.],
+      _subgroup(2)[*Reconstruction loop*],
+      [#_sub(1, "") scale \* /* scale */], [Span of one pyramid level (ACM family) or one round (APD-MVS, DPE-MVS).],
+      [#_sub(1, "") upsampling \* /* upsample */], [Carrying depth and normal maps to a finer scale (bilinear or JBU).],
+      [#_sub(1, "") confidence evaluation \* /* confidence_eval */], [HPM-MVS++ host-side confidence sweep over the whole scene.],
+      [#_sub(1, "") edge map prior \* /* edge_prior */], [HPM-MVS++ Canny edge detection, DPE-MVS edge segmentation.],
+      [#_sub(1, "") reference image pass /* image_pass */], [PatchMatch pass for one reference image.],
+      [#_sub(2, "") input loading /* input_load */], [Images, and depth map in geometric passes.],
+      [#_sub(2, "") device upload /* device_upload */], [Allocating device memory; copying the inputs to the device.],
+      [#_sub(2, "") planar prior \* /* prior_build */], [Building the planar prior for the next PatchMatch call.],
+      [#_sub(2, "") PatchMatch /* patchmatch */], [One PatchMatch call on one reference image.],
+      [#_sub(3, "") initialization /* patchmatch.init */], [Initializing hypotheses and their matching costs.],
+      [#_sub(3, "") propagation /* patchmatch.propagate */], [Propagation and refinement iteration.],
+      [#_sub(3, "") finalization /* patchmatch.finalize */], [Post-iteration kernels; such as depth from plane, and filtering.],
+      [#_sub(3, "") readback /* patchmatch.readback */], [Copying the result from device to host.],
+      [#_sub(2, "") result unpacking /* result_readback */], [Host-side unpacking of the results into image-shaped buffers.],
+      [#_sub(2, "") depth map writing /* depthmap_write */], [Writing depth, normal and cost maps to disk.],
+      _subgroup(2)[*Fusion and output*],
+      [#_sub(1, "") fusion /* fusion */], [Fusing the depth maps into a point cloud.],
+      [#_sub(2, "") fusion loading /* fusion.load */], [Reading images, cameras and depth maps again for fusion.],
+      [#_sub(2, "") point generation /* fusion.consistency */], [Checking multi-view consistency; generating points.],
+      [#_sub(1, "") output writing /* output_write */], [Writing the final PLY point cloud.],
+      _rule(1pt),
+    )
+  },
+) <table-timing-measurements>]
+
+#let resource-table = [#figure(
+  kind: table,
+  caption: [
+    The resource measurements recorded for every run, each with a description. The host-side sampling frequency is 10Hz and is live during the container's lifetime. However, the RTX 5070's driver refresh for some metrics is only 2Hz. The interval column gives the effective resolution regardless of the host-side sampler's frequency. System scope includes every process across the system while process scope covers only the method's own processes.
+  ],
+  {
+    set text(size: 9pt)
+    set par(justify: false, leading: 0.5em)
+    table(
+      columns: (auto, auto, auto, auto, 1fr),
+      align: (left + top, left + top, left + top, left + top, left + top),
+      stroke: none,
+      inset: (x: 5pt, y: 3.5pt),
+      _rule(1pt),
+      table.header([*Measurement*], [*Unit*], [*Scope*], [*Interval*], [*Details*]),
+      _rule(0.5pt),
+
+      _group(5)[*Memory*],
+      [Peak device memory /* peak_device_mem_bytes */], [MiB], [process], [100 ms], [Measured lower-bound for the device peak memory.],
+      [Peak host memory /* peak_host_rss_bytes */], [MiB], [process], [100 ms], [Measured lower-bound for the host peak memory.],
+
+      _group(5)[*GPU activity*],
+      [GPU utilization /* gpu_util_pct */], [%], [system], [500 ms], [Share of time with a kernel running; basis of the GPU-idle share.],
+      [Power draw /* gpu_power_w */], [W], [system], [500 ms], [GPU energy measured throughout the run.],
+
+      _group(5)[*Validity checks*],
+      [SM clock /* gpu_sm_clock_mhz */], [MHz], [system], [100 ms], [Confirms the locked clock held for the whole run.],
+      [GPU temperature /* gpu_temp_c */], [°C], [system], [500 ms], [Confirms no thermal throttling.],
+
+      _group(5)[*Storage*],
+      [Disk read / write /* io_read_bytes, io_write_bytes */], [MiB], [process], [100 ms], [Block-device I/O of the container (cgroup v2); page-cache hits are not counted.],
+      [Disk footprint /* intermediates_bytes */], [MiB], [process], [once, after run], [Footprint of all files the converter and method left behind for each run separately.],
+      _rule(1pt),
+    )
+  },
+) <table-resource-measurements>]
+
+
 = Methodology
 
 /*
@@ -48,84 +150,54 @@ the methodology section mainly contains the following in some way:
 
 == Benchmarking the state-of-the-art
 
-To showcase the claim that the lineage of MVS algorithms improve quality while they also increase running time, the work starts with a comprehensive benchmarking of the selected methods. The benchmarking analyses all phases of the algorithms to gather as much information as possible without significant modifications to the implementation.
+To showcase the claim that the lineage of MVS algorithms improve quality while they also increase running time, the work starts with a comprehensive benchmarking of the selected methods.
 
-We have chosen 13 methods to evaluate in total. The selected methods contain the
-- ACM-family (ACMH, ACMP, ACMM, ACMMP): core cited methods successors are building upon
-- APD-MVS, HPM-MVS, and MP-MVS: three major work on top of the ACM-family, choosing different approach to improve the results
-- APDe-MVS, DPE-MVS, DVP-MVS: APD-MVS successors extending the lineage
-- HPM-MVS++: HPM-MVS successors
-- TSAR-MVS: a different approach than the ACM-family
-- CUMVS: a simplification and reimplementation of the ACMH/ACMM released by Fixstars, focusing on performance and production quality
+We have chosen 13 MVS algorithms to evaluate in total with the following considerations: all selected algorithms are building on the same concepts of Patch-Match-based stereo reconstruction and they are top-performers on the ETH3D leaderboard as of writing the thesis. They also provide access to an open-source implementation on Github which was crucial for evaluating implementation performance and comparing local with published results. The selected methods contain the
+- ACM-family (ACMH, ACMP, ACMM, ACMMP): they establish the foundation on top of Gipuma that successors are building upon.
+- APD-MVS, HPM-MVS, and MP-MVS: three major work on top of the ACM-family, all choosing a different approach to improve the results.
+- APDe-MVS, DPE-MVS, DVP-MVS: APD-MVS successors extending the lineage.
+- HPM-MVS++: HPM-MVS successor.
+- TSAR-MVS: a different approach than the ACM-family building on Gipuma.
+- CUMVS: a simplification and reimplementation of the ACMH/ACMM released by an independent high-performance company, Fixstars. The implementation focuses on performance and production quality.
 
-These algorithms were chosen because of three important reasons. They are all
-- building on the same concepts of Patch-Match-based stereo reconstruction,
-- top-performers on the ETH3D leaderboard and are highly cited by each other,
-- providing access to an open-source implementation on Github.
+The benchmarking analyses predefined phases of the algorithms to gather as much information as possible without significant modifications to the implementation. The algorithm implementations are treated as is, with only essential changes to the implementations as possible. The required changes are mostly related to setup and compilation, or phase timing for the benchmarking. Later sections describe these changes in depth.
+
+The benchmarking has two target measurements: speed through *mean execution time*, and quality through *F1 score*.
 
 === Configuration
 
 ==== dataset, selected scenes, and input resolution
 
-There are many influential benchmarks in the field of 3D reconstruction all of them serving a different purpose. The Middlebury dataset @middlebury_dataset has been the foundational work in creating a structured framework for evaulating two-view stereo algorithm. DTU MVS dataset @dtu_dataset was established for robotics and it provides no leaderboard to find MVS algorithms and their performance. ETH3D @eth3d_dataset is dataset with natural, large-scale scenes, high-resolution images, and provided ground-truth image poses to directly evaluate Multi-View stereo algorithms for pointcloud reconstruction. It has a good leaderboard, showing many SOTA MVS methods. Tanks and Temples @tanks_and_temples_dataset focuses on full 3D pipeline evaluation thus an evaluation requires camera pose estimation as the first step. It also provides a good leaderboard with many SOTA MVS methods.
+There are many influential benchmarks in the field of 3D reconstruction all of them serving a different purpose. The Middlebury dataset @middlebury_dataset has been the foundational work in creating a structured framework for evaulating two-view stereo algorithm. DTU MVS dataset @dtu_dataset was established for robotics. It provides no leaderboard to rank MVS algorithms and their performances. ETH3D @eth3d_dataset is dataset with natural, large-scale scenes, high-resolution images, and provided ground-truth camera parameters to directly evaluate MVS algorithms for pointcloud reconstruction. It showcases a leaderboard, with many SOTA MVS contenders. Tanks and Temples @tanks_and_temples_dataset focuses on full 3D pipeline evaluation thus an evaluation requires camera parameter estimation as the first step. It also provides a good leaderboard with many SOTA MVS methods.
 
-The ETH3D dataset has been selected as the evaluation dataset for the following reasons
-- it focuses directly on MVS
-- many algorithm choose this dataset as their primary target for benchmarking
-- convenient evaluation scripts are available
+For the benchmarking in this thesis, ETH3D dataset has been selected as the evaluation dataset for the following reasons:
+- it focuses directly on MVS algorithms,
+- many algorithm choose this dataset as their primary target for benchmarking,
+- and convenient evaluation scripts are available.
 
-The dataset contains 13 scenes with ground-truth as a training set with a wide-variety of indoor and outdoor scenes. The algorithms can react very differently to scene differences thus including all scenes in the benchmarking is crucial. The dataset consists of 7 scenes that have uniform-sized images and 6 scenes which have mixed-sized images. The APD-MVS and DPE-MVS author implementations handle the mixed-sized images in the converter by zero-padding the images to a uniform size.
+The dataset features 13 scenes with provided ground-truth for a training set. It has a wide-variety of indoor and outdoor scenes. The algorithms can react very differently to scene differences thus including all scenes in the benchmarking is crucial. For example, the dataset consists of 7 scenes that have uniform-sized images and 6 scenes which have mixed-sized images. The APD-MVS and DPE-MVS implementations handle the mixed-sized images in the converter by zero-padding the images to a uniform size. It is important to note that the benchmarking experiment does not try to control these implementation decisions, it merely acknowledges them.
 
-From an algorithm evaluation perspective, it is interesting to observe the behavior of the implementations at different resolutions than native. Generally, production-grade scanning systems produce a stream of images at lower resolutions than they are captured in ETH3D. Otherwise, 3D reconstruction software usually provide the ability (either implicitly or explicitly) to rescale the images to a lower resolution to make the MVS step faster. Many papers also state that they have run at least part of their evaulations on lower resolutions. Thus, apart from the native resolution, the benchmark defines two downsampled variants at half (3200px width) and at quarter (1600px width) the resolution of the original images (around 6200px width). To minimize loss of image quality, the benchmarking system handles the rescaling using a JPEG q100 4:4:4 re-encoding with Hamming windows for anti-aliasing while preparing the ETH3D dataset.
+From an algorithm evaluation perspective, it is interesting to observe the behavior of the implementations at different resolutions than native. Generally, production-grade scanning systems produce a stream of images at lower resolutions than they are captured in ETH3D. Otherwise, 3D reconstruction software usually provide the ability to (either explicitly or implicitly through "quality" flags) rescale the images to a lower resolution to make the reconstruction faster. Many papers also state that they have run at least part of their evaulations on lower resolutions #todo[cite!]. Thus, apart from the native resolution, the benchmark defines two downsampled variants at half (3200px width) and at quarter (1600px width) the resolution of the original images (around 6200px width). To minimize loss of image quality while preparing the dataset, the benchmarking system handles the rescaling using JPEG q100 4:4:4 re-encoding with Hamming windows for anti-aliasing.
 
 ==== quality metrics
 
 The ETH3D dataset provides a small set of quality metrics for evaluating MVS algorithms. Given an evaluation threshold for the radius around points, the dataset defines
-- *Accuracy*: the ratio of reconstructed points that have a ground truth point within a certain radius over all reconstructed.
-- *Completeness*: the ratio of ground truth points that have a reconstructed point within the same radius over all ground truth points.
-- *F1 Score*: the harmonic mean of accuracy and completeness, combining the two metrics into a single measure.
+- _Accuracy_: the ratio of reconstructed points that have a ground truth point within a certain radius over all reconstructed.
+- _Completeness_: the ratio of ground truth points that have a reconstructed point within the same radius over all ground truth points.
+- _F1 score_: the harmonic mean of accuracy and completeness, combining the two metrics into a single measure.
 
 The quality is measured at 1, 2, 5, 10, 20 cm radius evaluation thresholds, with 2 cm being the primary (the ETH3D default on their leaderboard).
 
 ==== runtime metrics
 
-#todo[make table]
-- what the benchmarking system measures for each Run
-  - timings
-    - method wall time (includes 0.1-0.9 second container startup time)
-    - converter time (preprocessing)
-    - phase timings
-      - problem list - parsing the view-selection file into reference problem data structures
-      - scene scan - ?
-      - device init - selecting device, creating CUDA context
-      - scale - ?
-      - upsample - coarser level's depth and normal upsampling to a finer level, either joint-bilateral upsampling or resizing
-      - confidence eval - HPM-MVS++ host-side confidence sweep
-      - edge prior - calculating HPM-MVS++ Canny edge, or DPE-MVS edge segmentation
-      - image pass - one patch match pass for a reference image
-      - input load - host-side reading of the inputs that a single pass needs
-      - device upload - allocating and copying inputs to device memory
-      - prior build - building planar prior for next patch match iteration
-      - patchmatch - one patch match call #todo[what is the difference between this and image pass]
-        - patchmatch.init - hypothesis and cost initialization
-        - patchmatch.propagate - one propagation/refinement iteration
-        - patchmatch.finalize - to depth-map and filters
-        - patchmatch.readback - device->host copy
-      - result_readback - host-side reshaping the results
-      - depthmap_write - host writing depth to disk
-      - fusion - fusing into point cloud
-        - fusion.load - reading images, cameras, maps again for fusion
-        - fusion.consistency - consistency checking and point generation
-      - output_write - final PLY
-  - resources
-    - peak GPU memory
-    - peak host memory
-    - GPU utilisation
-    - GPU power draw
-    - GPU SM clock (to verify that we are not deviating from the locked MHz)
-    - GPU Temperature
-    - disk read/write
-    - disk usage (file sizes after run)
+The system thoroughly measures each execution through a diverse set of runtime metrics. It measures the algorithm timings in depth through an injected timer tool, discussed in #ref(<bench-system>). Conveniently, the stages that the algorithm implementations define are nearly identical. These shared stages give the thesis an ability to conduct a fine-grained comparison analyses (section xxx #todo[refer to benchmark analysis in results]). #ref(<table-timing-measurements>) shows a comprehensive overview of all the timing measurements.
+
+#timing-table
+
+Resource utilization is also measured, including host RAM, disk I/O, CPU and GPU utilization, among other more granular metrics.
+
+#resource-table
+
 
 ==== algorithm free-parameters
 
@@ -160,7 +232,7 @@ randomized order, with 2 repeats #todo("why two repeats, provide reasoning ")
 - variance measurements
 
 
-=== Measurement system
+=== Measurement system <bench-system>
 
 A measurement bench is defined by a host system, a GPU and it's driver, and a docker image containing a pinned evaluator and forked methods with pinned commits.
 
