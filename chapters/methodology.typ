@@ -166,7 +166,7 @@ The benchmarking has two target measurements: speed through *mean execution time
 
 === Configuration
 
-==== dataset, selected scenes, and input resolution
+==== Dataset, selected scenes, and input resolution
 
 There are many influential benchmarks in the field of 3D reconstruction all of them serving a different purpose. The Middlebury dataset @middlebury_dataset has been the foundational work in creating a structured framework for evaulating two-view stereo algorithm. DTU MVS dataset @dtu_dataset was established for robotics. It provides no leaderboard to rank MVS algorithms and their performances. ETH3D @eth3d_dataset is dataset with natural, large-scale scenes, high-resolution images, and provided ground-truth camera parameters to directly evaluate MVS algorithms for pointcloud reconstruction. It showcases a leaderboard, with many SOTA MVS contenders. Tanks and Temples @tanks_and_temples_dataset focuses on full 3D pipeline evaluation thus an evaluation requires camera parameter estimation as the first step. It also provides a good leaderboard with many SOTA MVS methods.
 
@@ -179,7 +179,7 @@ The dataset features 13 scenes with provided ground-truth for a training set. It
 
 From an algorithm evaluation perspective, it is interesting to observe the behavior of the implementations at different resolutions than native. Generally, production-grade scanning systems produce a stream of images at lower resolutions than they are captured in ETH3D. Otherwise, 3D reconstruction software usually provide the ability to (either explicitly or implicitly through "quality" flags) rescale the images to a lower resolution to make the reconstruction faster. Many papers also state that they have run at least part of their evaulations on lower resolutions #todo[cite!]. Thus, apart from the native resolution, the benchmark defines two downsampled variants at half (3200px width) and at quarter (1600px width) the resolution of the original images (around 6200px width). To minimize loss of image quality while preparing the dataset, the benchmarking system handles the rescaling using JPEG q100 4:4:4 re-encoding with Hamming windows for anti-aliasing.
 
-==== quality metrics
+==== Quality metrics
 
 The ETH3D dataset provides a small set of quality metrics for evaluating MVS algorithms. Given an evaluation threshold for the radius around points, the dataset defines
 - _Accuracy_: the ratio of reconstructed points that have a ground truth point within a certain radius over all reconstructed.
@@ -188,7 +188,7 @@ The ETH3D dataset provides a small set of quality metrics for evaluating MVS alg
 
 The quality is measured at 1, 2, 5, 10, 20 cm radius evaluation thresholds, with 2 cm being the primary (the ETH3D default on their leaderboard).
 
-==== runtime metrics
+==== Runtime metrics
 
 The system thoroughly measures each execution through a diverse set of runtime metrics. It measures the algorithm timings in depth through an injected timer tool, discussed in #ref(<bench-system>). Conveniently, the stages that the algorithm implementations define are nearly identical. These shared stages give the thesis an ability to conduct a fine-grained comparison analyses (section xxx #todo[refer to benchmark analysis in results]). #ref(<table-timing-measurements>) shows a comprehensive overview of all the timing measurements.
 
@@ -199,37 +199,38 @@ Resource utilization is also measured, including host RAM, disk I/O, CPU and GPU
 #resource-table
 
 
-==== algorithm free-parameters
+==== Algorithm free-parameters
 
-All of these algorithm provide some level of quality and performance metrics in their papers. The algorithms are building on the same algorithmic blocks with the same or similar parameters to configure. The thesis aims at a globally consistent setting for shared free-parameters, and aims to incorporate any values from the papers where those values has been explicitly stated by the authors. When selecting a global configuration for a fair benchmarking, the paper stated values has to be cross-verified with their implementations and any deviation from the implementation has to be stated for reproducibility. For the benchmarking, explicitly stated values in the papers will override any deviation in implementation defaults. Apart from these, the benchmarking runs the implementation's own shipped converters and parameters.
+The algorithms are building on the same algorithmic blocks with the same or similar parameters to configure. All of them publish varying levels of quality and performance configurations in their papers. The thesis aims at a globally consistent setting for shared free-parameters and chooses to use any values from the papers where those values has been explicitly stated by the authors. These paper stated values have been cross-verified with their respective implementation. For the benchmarking, explicitly stated values in the papers will override any deviation in implementation defaults. Apart from these, the benchmarking runs the implementation's own shipped converters and parameters.
 
-No reconstruction method states the number of source images explicitly in its paper. Some define 10 source images for only their memory and runtime comparison for unexplained reasons @apd @tsar @dvp. The implementations all agree on a maximum 20 sources per reference image, with the converters view selection doing the rest. The shipped converter and thus the produced number of views are generally byte-identical because it was copied from implementation to implementation.
+No reconstruction method states the number of source images explicitly in its paper. Some define 10 source images for only their memory and runtime comparison without explaining the choice @apd @tsar @dvp. The implementations all agree on a maximum 20 sources per reference image, with the converter's view selection doing the rest. The shipped converter was mostly copied over from project to project, thus the selected views are generally byte-identical.
 
-==== repeats and order of execution
+==== Benchmark dimensioning
 
-The MVS algorithms are non-deterministic thus the benchmarking requires repeated execution to combat variance in results. To determine the number of necessary repeats during benchmarking prior work has to find the randomness factors, make sure that runs are independent, and estimate the variance @kalibera_rigorous_benchmarking.
+The MVS algorithms are non-deterministic, thus the benchmarking requires repeated execution to combat variance in results. To determine the number of necessary repeats during benchmarking prior work has to find the randomness factors, make sure that runs are independent, and estimate the variance. For this, the thesis carries out a dimensioning experiment to prepare the benchmarking run. During execution, uncontrolled variables can lead to bias in interpreting benchmarking results, while selecting the right number of repetitions improves the likelihood of finding true means through measured variance. The goals of dimensioning are exactly these: 1. eliminate the uncontrolled variables; 2. find the right number of repetitions to minimize the effect of random variables. @kalibera_rigorous_benchmarking
 
-*Randomness factors*: in all methods the GPU clock cycle counter seeds the random number generator. No method implementation allows for changing this. The random number generator drives the PatchMatch random initialization, the pixel-level view sampling, the depth refinement and RANSAC iterations, and indirectly everything else downstream such as the selected planar priors. Even if the work would fix the seed as a deviation from the original implementation, most algorithms would stay non-deterministic due to bugs and inattention to concurrency issues. The ACM-family PatchMatch kernel implementations have race conditions in the near sampling reads. DPE-MVS has the same type of race in its the edge-aware sampling. Furthermore, it reads uninitialized memory past the end of the image buffer. APD-MVS (and DPE-MVS due to copy-pasted code) leaves an uninitialized border row and column on odd image sizes. Meanwhile, HPM-MVS++ has multiple uninitialized values in the kernel. These are the types of bugs that the thesis claims as inherited problems.
 
-*Run independence and variance estimation*: for proving the independence of runs and finding out the variance to calculate the number of repeats, a dimensioning @kalibera_rigorous_benchmarking on three factor configurations has been run 15 times per method. The configurations include two selected datasets both running at 1600px downscaled resolution: `pipes` and `meadow` and `office`.
+*Randomness factors* In all methods, the GPU clock cycle counter seeds the random number generator. No method implementation allows for changing this. The random number generator drives the PatchMatch random initialization, the pixel-level view sampling, the depth refinement and RANSAC iterations, and indirectly everything else downstream such as the selected planar priors. Even if the work would fix the seed as a deviation from the original implementation, most algorithms would stay non-deterministic due to bugs and concurrency issues. The ACM-family PatchMatch kernel implementations have race conditions in the near sampling reads. DPE-MVS has the same type of race in its the edge-aware sampling. Furthermore, it reads uninitialized memory past the end of the image buffer. APD-MVS (and DPE-MVS due to copy-pasted code) leaves an uninitialized border row and column on odd image sizes. Meanwhile, HPM-MVS++ has multiple uninitialized values in the kernel. These are the types of bugs that the thesis claims as inherited problems.
+
+*Run independence and variance estimation*: for proving the independence of runs and finding out the variance to calculate the number of repetitions, a dimensioning @kalibera_rigorous_benchmarking on three factor configurations has been run 15 times per method. The configurations include three selected datasets both running at 1600px downscaled resolution: *pipes*, *meadow*, and *office*. The runs were scheduled in a randomized order. Next to wall time, F1 score is also included in the dimensioning as a target measurement because the non-deterministic factors alter the results.
 
 #figure(
   image("../generated/figures/dimensioning_run_statistics.png", width: 100%),
-  caption: [Run statistics of the dimensioning campaign.],
+  caption: [Run statistics of the dimensioning experiment. The lag-1 plots' correlations show that generally the runs are independent of each other both in terms of runtime and quality. The compacted sequence plots show the mean and variance of the runs.],
 ) <fig-dimensioning-run-statistics>
 
-#todo[we still need to select the number of reruns]
+#ref(<eq-ci>) gives the 95% confidence interval for the mean of a cell after $n$ repetitions suggested by @kalibera_rigorous_benchmarking for our single-level experiment.
 
-*Variance estimation*:
-- wall-time noise does not dpeend on the scene
-- F1 noise depends on the scene
+$ overline(Y) plus.minus t_(0.975, n_b-1) dot s / sqrt(n) $ <eq-ci>
 
-The builds and the environment is controlled through
+where $overline(Y)$ is the sample mean, $s$ the sample standard deviation and
+$t_(0.975, n_b-1)$ Student's $t$ quantile with $n_b-1$ degrees of freedom.
 
-Other randomness factors
+The number of repetitions is the smallest $n$ whose half-width meets the target $E$. Taking into account the minimum suggested value for $n_b$ which is 5:
 
-randomized order, with 2 repeats #todo("why two repeats, provide reasoning ")
-- variance measurements
+$ n_b^* = min { n_b >= 5 : t_(0.975, n_b-1) dot s / sqrt(n_b) <= E } $ <eq-repeats>
+
+The results for the 15 runs are shown in #ref(<fig-dimensioning-run-statistics>). The suggested minimum repetitions for the dimensioning is 30, however, 15 runs across all of the methods already take over 11 hours. Slightly more repetitions in the dimensions would not lower the calculated $n_b$. In the case of the results for most dimensioning runs, $n_b = 5$. However, 15 runs is already a sparser sampling of the variance $s$ which requires more repetitions to achieve the 95% confidence interval. Thus the thesis uses *$n_b = 8$* as the number of repetitions during the benchmarking experiment.
 
 
 === Measurement system <bench-system>
@@ -246,7 +247,7 @@ A measurement bench is defined by a host system, a GPU and it's driver, and a do
 
 A byte-identical bench timer that times different phases of the algorithms is commited and compiled into every measured fork. It is enabled by an environment variable that the docker image sets. The forks in the ACM lineage already synchronise after every CUDA kernel launch, so no commit was required for measuring kernel timings. CUMVS is asynchronous by default for its initialization kernels, so a commit was required to make these synchronous. The effects are negligible and they only added a measured 0.9 seconds to the wall runtime.
 
-Furthermore, all forks are compiled directly to native  NVidia `sm_120`.
+Furthermore, all forks are compiled directly to native NVidia `sm_120`.
 
 ==== hardware
 
@@ -256,9 +257,7 @@ The benchmarking system uses Nvidia 5070 GPU with 12GB VRAM. The benchmark expli
 
 For controlling the experiments the 5070 GPU's streaming multiprocessor (SM) clock is locked at the card's base frequency: 2317 MHz. The card has a much higher boost frequency which it might not be able to sustained under changing temperatures and fluctuating power over the long benchmarking session and could negatively affect the results. No other processes running on the GPU is a requirement for the benchmarking.
 
-Controlling the host requires us to pin the containers to use CPU threads 0-7,16-23 because of the 9950X3D dual CCD design having 96 MB L3 cache for these 16 threads, while having only 32 MB for the other 16. A method that is only running on the latter would be in disadvantage compared to the others that run only on the former. Apart from this, the benchmark sets the CPU governor and the Energy Performance Preference (EPP) to performance mode, and turns off boost.
-
-#todo[host boost is turned off, explain why.]
+Controlling the host requires us to pin the containers to use CPU threads 0-7,16-23 because of the 9950X3D dual CCD design having 96 MB L3 cache for these 16 threads, while having only 32 MB for the other 16. A method that is only running on the latter would be in disadvantage compared to the others that run only on the former. Apart from this, the benchmark sets the CPU governor and the Energy Performance Preference (EPP) to performance mode, and turn the CPU frequency scaling. However, the CPU frequency scaling on is left on as it didn't provide significant differences in wall time, and the AMD 9950X3D CPU can sustain boosted frequencies indefinitely. #todo[could link https://gamersnexus.net/cpus/amd-ryzen-9-9950x3d-cpu-review-benchmarks-vs-9800x3d-285k-9950x-more]
 
 
 == Runtime decomposition, algorithmic cost, and analysis
