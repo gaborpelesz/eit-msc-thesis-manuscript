@@ -263,18 +263,51 @@ For controlling the experiments the 5070 GPU's streaming multiprocessor (SM) clo
 
 Controlling the host requires us to pin the containers to use CPU threads 0-7,16-23 because of the 9950X3D dual CCD design having 96 MB L3 cache for these 16 threads, while having only 32 MB for the other 16. A method that is only running on the latter would be in disadvantage compared to the others that run only on the former. Apart from this, the benchmark sets the CPU governor and the Energy Performance Preference (EPP) to performance mode, and turn the CPU frequency scaling. However, the CPU frequency scaling on is left on as it didn't provide significant differences in wall time, and the AMD 9950X3D CPU can sustain boosted frequencies indefinitely. #todo[could link https://gamersnexus.net/cpus/amd-ryzen-9-9950x3d-cpu-review-benchmarks-vs-9800x3d-285k-9950x-more]
 
+== APD-MVS production ready reimplementation
 
-== Runtime decomposition, algorithmic cost, and analysis <selected-method-analysis>
+APD-MVS is one of the more recent approaches to help the patch-match window problem. 
+
+CUMVS
+
+The main contribution of this thesis is the integration of APD-MVS into CUMVS.
+
+The work starts by integrating APD-MVS as a propagation backend into CUMVS. CUMVS already supports multiple backends and implements Gipuma- and ACMH-style propagation and allows for switching between the backends using a Command-Line Interface (CLI) flag. The first goal of the thesis is to achieve a seemless integration where the F1-score results are similar to the original APD-MVS implementation.
+
+The work continues by closely examining the performance characteristics of the APD-MVS integration. First it depicts the contributing factors, then examines them carefully to find performance improvement opportunities. It analyzes the stages of the MVS algorithm that take the most time, and focuses on applying Amdahl's law to find the best targets for optimization.
+
+
+=== CUMVS integration
+
+This section describes integration process and the differences between the integrated and the original performance of APD-MVS.
+
+- CUMVS has a slightly different strategy for view selection
+- #todo[what else is different in CUMVS?]
+
+=== Runtime decomposition, algorithmic cost, and analysis <selected-method-analysis>
 
 
 
-== Own implementation...
 
+/*
 Itt van az algoritmus leirasa es kidolgozasa
 
 claude: mik azok amik érdekesek lehetnek más szemszögéből, mik azok az angle-ök
 
-/*
+I'm not sure whether this should be here or in the results yet, but we will include it here and we will be able to still change it later.
+
+- this section should select an algorithm that is doing poorly in terms of runtime, it will be: APD-MVS (check whether I still agree that APD-MVS is the best candidate. I should read APD-MVS, MP-MVS, and DP-MVS (the thin structured paper))
+- this section should analyse each component of the benchmark, understand whether it is necessary to spend time on those certain steps or not.
+- From the benchmarking, we should also understand whether the runtimes that the published papers share, are regarding to their total runtime, or to their patch match algorithms only. I know that for MP-MVS, they were comparing their patch match kernel performance with ACMMP's kernel performance, and I could verify their claims of being faster almost exactly.
+- and point out the different contributing pieces
+
+Methodology:
+1. we are going to run the method with the benchmark steps, to get a sense of how the timings are doing. This we will able to derive from the benchmarking results themselves.
+2. We should first integrate APD-MVS to be working in CUMVS
+3. Then, we should be able to continue looking into the internals, and performance optimize the method.
+
+
+There is no reason why I shouldn't use and fork CUMVS as my primary baseline for the production ready ipmlementation. I should integrate APD-MVS into CUMVS, and then continue performance optimizing it and map it to the CUMVS style. I can go even further than CUMVS did when they perf optimized ACMH. I should acknowledge their great work, and should utilize what they've already created instead of creating my own! This is easier to justify and will easier and better from the thesis perspective.
+
 instead of Quorum MVS, do an ablation study based on the selected algorithm (for example APD-MVS or MP-MVS). Change only a single component at a time, for example remove the JPEG re-encoding and measure how it affects the system, and move component by component to show how we are slowly improving the system. Move in small iterations and do the same when making the system into a production system. Make sure we stay bit-identical for performance improvements, and make sure we measure as ablation when we are deviating from the original implementation.
 */
 #todo[ablation study]
