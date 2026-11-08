@@ -118,13 +118,13 @@ Every modern PatchMatch MVS reconstruction system follows the same stages to com
 Per reference image, cost is pixels × source views × patch taps × iterations × passes. The Literature Review can then place each lineage step as “multiplies term X”, using compendium §2.2’s numbers. That turns a list of papers into an argument.
 */
 
-
 ==== View selection
 
 In a real-world large-scale reconstruction scenario as well as in larger benchmarks @eth3d_dataset @tanks_and_temples_dataset the covered area can not be observed by all images. Including all images would lead to poor results and ambiguous matches. The goal of image-level view selection is to find a small set of source images that can be used for photo-consistency evalution in the reference image. The algorithm to select views uses the existing SfM reconstruction. Two images that share many _sparse points_ (used in SfM triangulation) observe the same part of the scene with a similar appearance. Dense matching between such views will generally succeed in depth estimation @goesele2007_community_mvs. The number of shared sparse points is not sufficient as it favours nearly co-located cameras whose short baseline leaves depth poorly constrained. Practical view selection scores therefore combine the shared points with the triangulation angle between the cameras. Viewing angle differences of 5-15° are a good compromise between matching reliability and depth precision @furukawa2015_mvs_tutorial. Selecting 5-20 source images per reference is a common practice in most MVS systems @acmh_acmm @acmp @acmmp @apd @hpm @hpm_plusplus @dpe @dvp.
 
-==== Fusion
+==== Depth-map fusion
 
+A large range of merging techniques has been proposed for fusing depth maps together into a single 3D point cloud. However, PatchMatch MVS methods mostly avoid any complex machinery. Their focus is mostly on generating the best possible depth maps and instead employ basic fusion strategies @gipuma. Depth discontinuities, occlusion boundaries, and distant camera estimates are unreliable in depth maps and they must be suppressed or filtered out for reliable 3D reconstruction @furukawa2015_mvs_tutorial. In the simple consistency-based fusion algorithm, each reference image pixel's depth is checked against all source views. A source view agrees with a depth if the depth estimate at the reference views pixel reprojected into the source, and that source pixel's depth reprojected into the reference agree withing $epsilon$ and their normals within $theta = 10°$. A depth passes the consistency check if at least $n$ source views agree. Typical values for these are $epsilon = 0.01$, $theta = 10°$, and $n = 2$ @acmmp. The advantages of the simple method are that the runtime is negligible compared to the depth estimation, and that tuning the parameters to balance accuracy and completeness does not require depth recomputation.
 
 == GPU execution and performance
 
