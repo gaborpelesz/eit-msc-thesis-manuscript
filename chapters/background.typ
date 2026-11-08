@@ -101,23 +101,29 @@ The algorithm starts by randomly initializing the current planes in all pixels. 
 
 - The cost for a pixel and its plane is defined as follows...
 
-One of the core problems of early PatchMatch formulations is the sequential nature of the propagation scheme. Some work has parallelized PatchMatch across rows and columns of images to improve the performance #todo[cite]. @gipuma introduces the checkerboard propagation to parallelize the algorithm which maps well to the multi-core GPU architecture. Their diffusion-like propagation works by calculating the costs and best candidates for half of the pixels at each iteration, and receiving plane candidates from a pixel's 4-neighborhood. 
+One of the core problems of early PatchMatch formulations is the sequential nature of the propagation scheme. Some work has parallelized PatchMatch across rows and columns of images to improve the performance #todo[cite]. @gipuma introduces the checkerboard propagation to parallelize the algorithm which maps well to the multi-core GPU architecture. Their diffusion-like propagation works by calculating the costs and best candidates for half of the pixels at each iteration, and receiving plane candidates from a pixel's 4-neighborhood.
 
 
 === Modern PatchMatch systems
 
-PatchMatch uses the assumption that multiple pixels are present in the scene with similar depth thus a pixel can get good hypotheses by checking neighboring pixels. Empirically, after multiple iteration, the patch-match algorithm converges to a very good depth estimate @gipuma.
+PatchMatch uses the assumption that multiple pixels are present in the scene with similar depth thus a pixel can get good hypotheses by checking neighboring pixels. Empirically, the patch-match algorithm converges to a very good depth estimate after only a couple iterations @gipuma.
 
-Every modern PatchMatch MVS reconstruction systems follow the same stages to compute a 3D point cloud @colmap_mvs:
+Every modern PatchMatch MVS reconstruction system follows the same stages to compute a 3D point cloud @colmap_mvs:
 + For each _reference image_ $I_r$, an *image-level view selection* algorithm selects $N$ neighbouring _source images_ $I_n$, $n in cal(N)(r)$, from the set of all images $cal(M) = {1, dots, M}$, where $cal(N)(r) subset cal(M) without {r}$ and $|cal(N)(r)| = N$.
-+ Given a reference image and its source images, a patch-match-based algorithm iteratively *estimates a depth map and a normal map*.
-+ Unreliable or inconsistent estimates are filtered out.
++ Given a reference image and its source images, a PatchMatch propagation algorithm iteratively *estimates and refines a depth map and a normal map*.
 + Consistent reference and source pixels from the depth maps are fused into a single 3D point cloud.
 
 /*
 4. A cost model
 Per reference image, cost is pixels × source views × patch taps × iterations × passes. The Literature Review can then place each lineage step as “multiplies term X”, using compendium §2.2’s numbers. That turns a list of papers into an argument.
 */
+
+
+==== View selection
+
+In a real-world large-scale reconstruction scenario as well as in larger benchmarks @eth3d_dataset @tanks_and_temples_dataset the covered area can not be observed by all images. Including all images would lead to poor results and ambiguous matches. The goal of image-level view selection is to find a small set of source images that can be used for photo-consistency evalution in the reference image. The algorithm to select views uses the existing SfM reconstruction. Two images that share many _sparse points_ (used in SfM triangulation) observe the same part of the scene with a similar appearance. Dense matching between such views will generally succeed in depth estimation @goesele2007_community_mvs. The number of shared sparse points is not sufficient as it favours nearly co-located cameras whose short baseline leaves depth poorly constrained. Practical view selection scores therefore combine the shared points with the triangulation angle between the cameras. Viewing angle differences of 5-15° are a good compromise between matching reliability and depth precision @furukawa2015_mvs_tutorial. Selecting 5-20 source images per reference is a common practice in most MVS systems @acmh_acmm @acmp @acmmp @apd @hpm @hpm_plusplus @dpe @dvp.
+
+==== Fusion
 
 
 == GPU execution and performance
