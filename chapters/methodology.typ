@@ -265,28 +265,41 @@ Controlling the host requires us to pin the containers to use CPU threads 0-7,16
 
 == APD-MVS production ready reimplementation
 
-APD-MVS is one of the more recent approaches to help the patch-match window problem. 
+APD-MVS is one of the more recent approaches to help the patch-match window problem. The main contribution of this thesis is the integration of APD-MVS into CUMVS. #todo[slightly better intro once we have more content]
 
-CUMVS
+=== APD-MVS integration into CUMVS
 
-The main contribution of this thesis is the integration of APD-MVS into CUMVS.
-
-The work starts by integrating APD-MVS as a propagation backend into CUMVS. CUMVS already supports multiple backends and implements Gipuma- and ACMH-style propagation and allows for switching between the backends using a Command-Line Interface (CLI) flag. The first goal of the thesis is to achieve a seemless integration where the F1-score results are similar to the original APD-MVS implementation.
-
-The work continues by closely examining the performance characteristics of the APD-MVS integration. First it depicts the contributing factors, then examines them carefully to find performance improvement opportunities. It analyzes the stages of the MVS algorithm that take the most time, and focuses on applying Amdahl's law to find the best targets for optimization.
-
-
-=== CUMVS integration and APD-MVS deviations
-
-This section describes integration process and the differences between the integrated and the original performance of APD-MVS.
-
-- 
-- #todo[what else is different in CUMVS?]
+This section describes the integration process and the differences between the integrated and the original performance of APD-MVS. The work starts by integrating APD-MVS as a propagation backend into CUMVS. CUMVS already supports multiple backends and implements Gipuma- and ACMH-style propagation and allows for switching between the backends using a Command-Line Interface (CLI) flag. The first goal of the thesis is to achieve a seemless integration where the F1-score results are similar to the original APD-MVS implementation.
 
 
 ==== View selection
 
-CUMVS employs a slightly different strategy for view selection strategy than the converter tool that many MVS forks use. 
+CUMVS employs a slightly different strategy for view selection strategy than the converter tool that many MVS forks use. The two implementations use completely opposite ordering for the images because CUMVS indexes images in line order from the input file, while APD's converter indexes images by sorted image IDs. The integration uses CUMVS ordering because the ordering had no measured effect on the quality.
+
+==== Depth-range calculation
+
+Both implementations calculate the minimum and maximum allowed depth for each reference image and store them for the PatchMatch propagation step. Depth-range is used for the random initialization, a neighbor plane is only accepted if it is inside the range, and the random perturbation guesses are also drawn from the range. However, they use a slightly different strategies to calculate the range. CUMVS projects *all* SfM sparse points into the reference camera, filters out those that are behind the camera, and calculates the 1st and 99th percentiles for a low and high range estimate, finally it widens the results by x0.75 and x1.25, respectively. APD-MVS finds only those SfM points that are insideb the camera frustrum. #ref(<tab:depth-range-f1>) shows the effects of using the two different approaches for depth-range calculation. The results show that using APD-MVS's frustrum-based calculation gives significantly better F1-score results due to increasing the completeness over the scene. Therefore, the integrations depth-range strategy will follow APD-MVS.
+
+#figure(
+  table(
+    columns: (auto, auto, 1fr, 1fr, 1fr, 1fr, 1fr),
+    align: (left, left, right, right, right, right, right),
+    stroke: none,
+    inset: (x: 6pt, y: 4pt),
+    table.hline(stroke: 0.8pt),
+    table.header(
+      [*Backend*], [*SfM points*], [*1 cm*], [*2 cm*], [*5 cm*], [*10 cm*], [*20 cm*],
+    ),
+    table.hline(stroke: 0.5pt),
+    [APD-MVS], [`Frustrum`],   [0.82261], [*0.87874*], [0.92546], [0.97870], [0.99207],
+    [APD-MVS], [`All`], [0.82687], [*0.87997*], [0.90874], [0.91946], [0.92919],
+    table.hline(stroke: 0.3pt),
+    [CUMVS], [`Frustrum`],   [0.72815], [*0.77528*], [0.80987], [0.83098], [0.84562],
+    [CUMVS], [`All`], [0.69696], [*0.74122*], [0.77097], [0.78589], [0.80350],
+    table.hline(stroke: 0.8pt),
+  ),
+  caption: [F1 score by tolerance on ETH3D _pipes_ (native resolution, 14 images) after the integration into CUMVS. Results are mean of two runs, for each backend and depth-range strategy.],
+) <tab:depth-range-f1>
 
 
 ==== Re-encoded images
@@ -294,6 +307,8 @@ CUMVS employs a slightly different strategy for view selection strategy than the
 The lineage's shipped COLMAP to MVS-Net converter script is generally copy-pasted from method to method. Due to a bug, this script copies only lowercase `.jpg` extension image files and considers all other extensions as images it needs to actively re-encode as JPEG. The ETH3D files are all uppercase `.JPG` thus the converter decodes and re-encodes the images using JPEG with default settings at 95 quality and 4:2:0 chroma subsampling. Note, that APD-MVS would always re-encode images as it pads those images so that it can process using the same resolution.  CUMVS ships with it's own conversion and avoids the re-encode problem altogether. However, we should expect results to be slightly different due to the higher information density of the used images.
 
 === Runtime decomposition, algorithmic cost, and analysis <selected-method-analysis>
+
+The work continues by closely examining the performance characteristics of the APD-MVS integration. First it depicts the contributing factors, then examines them carefully to find performance improvement opportunities. It analyzes the stages of the MVS algorithm that take the most time, and focuses on applying Amdahl's law to find the best targets for optimization.
 
 
 
