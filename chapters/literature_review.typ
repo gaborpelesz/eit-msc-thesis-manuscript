@@ -82,25 +82,31 @@
 
 = Literature review
 
-This chapter describes the PatchMatch lineage of MVS algorithms that followed Gipuma @gipuma, COLMAP @colmap_mvs, and ACMH @acmh_acmm. The lineage is a set of MVS algorithms that build directly on top of these foundationals works, including references to these methods as baselines in their paper, refining these approaches, providing ablation studies, and by descending directly from their open-source implementations. The family of these methods are the focus of this thesis. They are all top-performers on benchmarks are all stretching the boundaries of traditional MVS algorithms.
+This chapter describes the PatchMatch lineage of MVS algorithms that followed Gipuma @gipuma, COLMAP @colmap_mvs, and ACMH @acmh_acmm. The lineage is a set of MVS algorithms that build directly on top of these foundational methods, including references to them as baselines in their paper, refining these approaches, providing ablation studies, and by descending directly from their open-source implementations.
 
+/*
 - multiple hypotheses idea was coming from #todo[cite campbell2008_multiple_hypotheses.pdf], they established a Markov-Random Field (MRF) formulation allowing for multiple depth hypotheses per point including an unknown state. This to fight Ambiguous matching along the epipolar line.
+*/
 
 
-== ACM-based MVS algorithms
+== Multi-Hypothesis Joint View Selection (ACMH)
 
-- Gipuma introduced checkerboard propagation
-  - #todo[how does it relate to earlier methods? what does it solve?]
-- ACMH inherits checkerboard from Gipuma and replaces the fixed sampling with adaptive sampling. It also inherits the pixelwise view selection from @colmap_mvs and improves using the joint view selection. Furthermore, it introduces the geometric consistency metric. They provide their own implementation and don't inherit from Gipuma's source code. Their authors release multiple other methods that are all improving on top of the base method, ACMH.
-  - #todo[explain pixelwise view selection]
-  - #todo[explain how does joint view selection differ from pixelwise view selection]
-  - #todo[explain what is geometric consistency, explain that this is running in iterations]
-  - ACMM -> multi-scale at 3-levels, upsampling uses joint bilateral upsampling (JBU), refines the upsampled results with detail restorer.
-  - ACMP -> planar-prior triangulates low-cost points of a photometric run into planes that are used as priors. Total of 4 passes / images
-  - ACMMP -> planar-prior and geometric consistency at every scale of the multi-scale propagation. Total of 12 passes / image.
-- HPM-MVS, and APD-MVS build on top of ACMH as their base
-  - HPM-MVS -> keeps ACMH but changes where hypotheses are coming from. It also features a hierarchical planar prior model, and runs one photometric, three planar prior and two geometric iterations totalling 6 passes / image.
-  - HPM-MVS++ adds multi-scale through an image-pyramid and adds two additional terms to the cost. The new costs are derived from a probabilistic graphical model: prior consistency and mandatory consistency. Totalling 18 passes / image, the most among the audited algorithms.
+Adaptive Checkerboard Multi-Hypothesis Joint View Selection (ACMH) inherits checkerboard from Gipuma and replaces the fixed sampling with adaptive sampling. It increases the sampled neighborhood by introducing new sampling directions. To avoid significantly increasing the number of candidates it changes the sampling positions for each pixel at every iteration, according to the current costs. A hypothesis from a reliable, well-textured pixel can then spread further and faster. This matters most in low-texture regions, where the nearest neighbours often carry poor hypotheses. @acmh_acmm
+
+ACMH integrates and improves the pixelwise view selection from @colmap_mvs using their joint view selection. Furthermore, after iterations using the photometric cost, they introduce iterations with an added geometric consistency metric in the cost function. The geometric consistency includes the estimates from neighboring depth images as priors, enforcing temporal consistency in the reference images. Their open-source implementation is being used and the foundation for multiple subsequent MVS algorithms.
+
+ACMM introduces a multi-scale reconstruction through image pyramids. Here, the photometric and geometric iterations are first running a downsampled image and compute a low resolution depth-map. This improves hypotheses to travel large areas in early iterations and help textureless surface reconstruction. Upsampling of computed depth and normal maps between scales is being handled by Joint Bilateral Upsampling (JBU). @acmh_acmm
+
+3D planes can regularly define textureless surfaces, especially in environments with human-made structures. Based on this assumption, ACMP's planar-prior model triangulates low-cost points of a photometric run into planes that are used as priors for subsequent iterations next to the geomtric consistency @acmp. Later, ACMMP combines all mentioned strategies, the planar-prior model and the multi-scale reconstruction, into a single system totalling 12 passes per image @acmmp.
+
+== ACM-lineage
+
+A large range of research has followed the introduction of the ACM-family methods. Partially because of the developing benchmarks such as ETH3D @eth3d_dataset and Tanks and Temples @tanks_and_temples_dataset, but more importantly due to their highly accessible open-source implementations.
+
+HPM-MVS @hpm builds on top of ACMH and changes where the hypotheses are coming from. It also features a hierarchical planar prior model, and runs one photometric, three planar prior and two geometric iterations totalling 6 passes / image. HPM-MVS++ is the natural extension that adds multi-scale through an image-pyramid and adds two additional terms to the cost. The new costs are derived from a probabilistic graphical model: prior consistency and mandatory consistency. HPM-MVS++ has a total of 18 passes / image, the most among the audited algorithms.
+
+APD-MVS @apd build on top of ACMH as their base. 
+
 - MP-MVS builds on top of ACMMP
   - It approaches the multi-scale from the opposite side, and instead of resizing the images, it resizes the patch match window dynamically in a multi-scale fashion. It argues that rescaling and per-scale optimization increases the running cost and redundancy, and there is an accuracy loss in the upsampling. MP-MVS is the only work across the lineage that directly addresses the performance problem of the lineage and improves the performance while keeping or exceeding the quality.
 - DPE-MVS builds on top of APD-MVS
