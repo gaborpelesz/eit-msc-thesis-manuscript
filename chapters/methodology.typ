@@ -276,12 +276,22 @@ The work starts by integrating APD-MVS as a propagation backend into CUMVS. CUMV
 The work continues by closely examining the performance characteristics of the APD-MVS integration. First it depicts the contributing factors, then examines them carefully to find performance improvement opportunities. It analyzes the stages of the MVS algorithm that take the most time, and focuses on applying Amdahl's law to find the best targets for optimization.
 
 
-=== CUMVS integration
+=== CUMVS integration and APD-MVS deviations
 
 This section describes integration process and the differences between the integrated and the original performance of APD-MVS.
 
-- CUMVS has a slightly different strategy for view selection
+- 
 - #todo[what else is different in CUMVS?]
+
+
+==== View selection
+
+CUMVS employs a slightly different strategy for view selection strategy than the converter tool that many MVS forks use. 
+
+
+==== Re-encoded images
+
+The lineage's shipped COLMAP to MVS-Net converter script is generally copy-pasted from method to method. Due to a bug, this script copies only lowercase `.jpg` extension image files and considers all other extensions as images it needs to actively re-encode as JPEG. The ETH3D files are all uppercase `.JPG` thus the converter decodes and re-encodes the images using JPEG with default settings at 95 quality and 4:2:0 chroma subsampling. Note, that APD-MVS would always re-encode images as it pads those images so that it can process using the same resolution.  CUMVS ships with it's own conversion and avoids the re-encode problem altogether. However, we should expect results to be slightly different due to the higher information density of the used images.
 
 === Runtime decomposition, algorithmic cost, and analysis <selected-method-analysis>
 
