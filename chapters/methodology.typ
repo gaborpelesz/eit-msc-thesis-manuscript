@@ -308,7 +308,35 @@ The lineage's shipped COLMAP to MVS-Net converter script is generally copy-paste
 
 ==== Device Compile flags
 
-APD-MVS builds its CUDA kernels using `--maxrregcount=128` and `--use_fast_math` compiler flags, while CUMVS does not. 
+APD-MVS builds its CUDA kernels using `--maxrregcount=128` and `--use_fast_math` compiler flags, while CUMVS includes neither of them. To understand the effect of each flag on the results, four measurements have been made after the integration: without the flags, with each flag alone, and with both flags being used. The results (in #ref(<tab:apd-device-flags>)) clearly show that using `--use_fast_math` gives significant performance improvements without affecting the quality of the results. On the other hand, the register cap forces no register spilling because no kernel need more than 128 registers (the maximum being 120 in kernel `DepthToWeak`). The only explanation for the faster results while turning on register capping is that NVCC decides on different PTX optimizations while the cap is active. Without further understanding the root-cause for the register capping speedup, the integration will use both flags and will override the CUMVS default behavior here.
+
+#figure(
+  table(
+    columns: 5,
+    align: (left, right, right, right, right),
+    stroke: none,
+    table.hline(),
+    table.header(
+      [Phase], [No flags], [Fast math], [Reg. cap], [Both],
+    ),
+    table.hline(stroke: 0.5pt),
+    [Initialization], [181.8s], [176.6s], [182.9s], [171.2s],
+    [Propagation],    [619.9s], [545.4s], [617.0s], [549.9s],
+    [Finalization],   [147.9s], [100.0s], [134.1s], [93.7s],
+    table.hline(stroke: 0.5pt),
+    [*Kernel total*], [*949.6s*], [*822.0s*], [*934.0s*], [*814.8s*],
+    table.hline(stroke: 0.5pt),
+    [Whole run],      [1232.1s], [1102.0s], [1216.9s], [1097.3s],
+    table.hline(stroke: 0.5pt),
+    [F1 at 2 cm],     [0.877], [0.877], [0.877], [0.876],
+    table.hline(),
+  ),
+  caption: [
+    Effect of device compiler flags on kernel time on the CUMVS integrated APD-MVS. Measured on ETH3D _pipes_ at
+    native resolution (6220 #sym.times 4141, 14 images). Times in seconds.
+  ],
+) <tab:apd-device-flags>
+
 
 ==== Intermediate artifacts storage: in-memory vs. disk
 
