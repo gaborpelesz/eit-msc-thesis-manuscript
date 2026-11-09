@@ -115,10 +115,9 @@ APD-MVS @apd builds directly on top of ACMH. It separates reliable and unreliabl
 
 == Cuda Multi-View Stereo from Fixstars
 
-CUMVS is a production-grade reimplementation of ACMH by the Japanese company, Fixstars. The work is directly focusing on the performance improvement and real world adaptability of the PatchMatch propagation. 
+CUMVS is an open-source, production-ready reimplementation of ACMM @acmh_acmm released by Fixstars Corporation. The work is directly focusing on the performance improvement and real world adaptability of the PatchMatch propagation. Its design in only documented by the source code and there is no accompanying paper. The authors state the aim to simplify the implementation as much as possible to incorporate the essence of recent PatchMatch algorithms. They improve the runtime speed 5.7x over ACMM, feature an OpenCV-style library with a typed API, and ships with a built-in C++ initializer for ETH3D instead of the Python converter regularly seen in other open-source implementations.
 
-
-
+The reimplementation comes with several algorithmic changes. It omits ACMM's joint bilateral upsampling and detail restorer, and replaces the Monte-Carlo pixelwise view selection with soft per-view weights. The homography is approximated, and is linearized around the patch window center to remove a division from the inner loop of the hotpath. They make several other optimizations, such as utilizing shared memory in GPU kernels for the sampling instead of naive texture fetching, and their per-view camera constants are precomputed in constant memory instead of rebuilding them inside the homography function. In their implementation, the depth and normal maps are kept in memory, where other methods tend to write them to disk and re-read them at every image pass.
 
 /*
 describes the lineage and selected methods that the thesis considers. shows and analyzes the algorithmic improvements and what added costs these have. Also analyzes the software source code a bit.
