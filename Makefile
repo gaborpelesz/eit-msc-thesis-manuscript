@@ -15,7 +15,7 @@ FIGURES = generated/figures/dimensioning_run_statistics.png
 
 figures: $(FIGURES)
 
-generated/figures/dimensioning_run_statistics.png: generated/dimensioning/scripts/dimensioning_run_statistics.py generated/dimensioning/data/runs.csv
+generated/figures/dimensioning_run_statistics.png: generated/dimensioning/scripts/dimensioning_run_statistics.py generated/dimensioning/data/runs-dev2.csv
 	uv run $<
 
 build: figures

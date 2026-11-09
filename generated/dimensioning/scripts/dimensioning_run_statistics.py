@@ -4,7 +4,8 @@
 # ///
 """Test-statistics figure: lag-1 autocorrelation and drift per cell, for wall time and F1 at 2 cm.
 
-Reads ../data/runs.csv; writes ../../figures/dimensioning_run_statistics.png.
+Reads ../data/runs-dev2.csv (the dimensioning run on dev2, the steadier of the two
+machines); writes ../../figures/dimensioning_run_statistics.png.
 Run: `make figures` from the thesis root, or `uv run scripts/dimensioning_run_statistics.py`.
 """
 import csv
@@ -18,7 +19,7 @@ from matplotlib.lines import Line2D
 from scipy import stats
 
 HERE = Path(__file__).resolve().parent.parent
-SOURCE = HERE / "data" / "runs.csv"
+SOURCE = HERE / "data" / "runs-dev2.csv"
 OUT = HERE.parent / "figures"
 METHODS = ["ACMH", "ACMM", "ACMP", "ACMMP", "MP-MVS", "HPM-MVS", "HPM-MVS_plusplus", "APD-MVS", "DPE-MVS", "CUMVS"]
 SCENES = ["pipes", "meadow", "office"]
