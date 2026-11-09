@@ -75,7 +75,7 @@
     }
   }),
   caption: [
-    The lineage from Gipuma onward by year of publication. Edges: solid, code fork (shared source tree); dashed, baseline credited in a paper or README; Nodes: grey, included in benchmark; white, excluded; dashed border, not in the collection.
+    The lineage from Gipuma onward by year of publication. Edges: solid, code fork (shared source tree); dashed, baseline credited in a paper or their repository's README.md file; Nodes: grey, included in benchmark; white, excluded; dashed border, not in the collection.
   ],
   placement: auto,
 ) <fig-lineage>]
@@ -97,29 +97,26 @@ ACMH integrates and improves the pixelwise view selection from @colmap_mvs using
 
 ACMM introduces a multi-scale reconstruction through image pyramids. Here, the photometric and geometric iterations are first running a downsampled image and compute a low resolution depth-map. This improves hypotheses to travel large areas in early iterations and help textureless surface reconstruction. Upsampling of computed depth and normal maps between scales is being handled by Joint Bilateral Upsampling (JBU). @acmh_acmm
 
-3D planes can regularly define textureless surfaces, especially in environments with human-made structures. Based on this assumption, ACMP's planar-prior model triangulates low-cost points of a photometric run into planes that are used as priors for subsequent iterations next to the geomtric consistency @acmp. Later, ACMMP combines all mentioned strategies, the planar-prior model and the multi-scale reconstruction, into a single system totalling 12 passes per image @acmmp.
+3D planes can regularly define textureless surfaces, especially in environments with human-made structures. Based on this assumption, ACMP's planar-prior model @acmp triangulates low-cost points of a photometric run into planes that are used as priors for subsequent iterations next to the geomtric consistency . Later, ACMMP @acmmp combines all mentioned strategies, the planar-prior model and the multi-scale reconstruction, into a single system totalling 12 passes per image.
 
 == ACM-lineage
 
-A large range of research has followed the introduction of the ACM-family methods. Partially because of the developing benchmarks such as ETH3D @eth3d_dataset and Tanks and Temples @tanks_and_temples_dataset, but more importantly due to their highly accessible open-source implementations.
-
-HPM-MVS @hpm builds on top of ACMH and changes where the hypotheses are coming from. It also features a hierarchical planar prior model, and runs one photometric, three planar prior and two geometric iterations totalling 6 passes / image. HPM-MVS++ is the natural extension that adds multi-scale through an image-pyramid and adds two additional terms to the cost. The new costs are derived from a probabilistic graphical model: prior consistency and mandatory consistency. HPM-MVS++ has a total of 18 passes / image, the most among the audited algorithms.
-
-APD-MVS @apd build on top of ACMH as their base. 
-
-- MP-MVS builds on top of ACMMP
-  - It approaches the multi-scale from the opposite side, and instead of resizing the images, it resizes the patch match window dynamically in a multi-scale fashion. It argues that rescaling and per-scale optimization increases the running cost and redundancy, and there is an accuracy loss in the upsampling. MP-MVS is the only work across the lineage that directly addresses the performance problem of the lineage and improves the performance while keeping or exceeding the quality.
-- DPE-MVS builds on top of APD-MVS
-  - APD-MVS -> targets to improve on one of the fundamental problems with MVS algorithm, namely, the homogeneous, weakly-textured regions. Here, a fixed matching window yields ambiguous cost. It works by labelling each pixel reliable or unreliable from the shape of the matching-cost profile around the depth in question.
-  - DPE-MVS extends APD-MVS by computing Canny edge maps and introducing them as guidance for the APD-MVS anchor search and sampling.
-- Recently, DVP-MVS and DVP-MVS++ (and others @apde #todo[cite MSP-MVS]) started to integrate monocular depth from learned-based methods as priors in their algorithms. TSAR-MVS @tsar post-processes an existing MVS output with #todo[what].
-- DVP-MVS builds on top of TSAR-MVS and APD-MVS
-- HPM-MVS++ builds on top of HPM-MVS
-- DVP-MVS++ on top of DVP-MVS
-- APDe-MVS on top APD-MVS
-- CUMVS is a reimplementation by Fixstars, building on top of ACMH. This is the only work that is directly focusing on performance improvement and real world adaptability. They don't release a paper, just an implementation.
+A large range of research has followed the introduction of the ACM-family methods. Partially because of the developing benchmarks such as ETH3D @eth3d_dataset and Tanks and Temples @tanks_and_temples_dataset, but more importantly due to their highly accessible open-source implementations. #ref(<fig-lineage>) shows the lineage of algorithms that this thesis audits. It is important to state that many other MVS algorithms exist. However, not many of these other algorithms feature open-source implementations while being top-performers on the ETH3D benchmark.
 
 #lineage-figure
+
+HPM-MVS @hpm builds on top of ACMH and changes where the hypotheses are coming from. It also features a hierarchical planar prior model, and runs one photometric, three planar prior and two geometric iterations totalling 6 passes / image. HPM-MVS++ @hpm_plusplus is the natural extension that adds multi-scale through an image-pyramid and adds two additional terms to the cost. The new costs are derived from a probabilistic graphical model: prior consistency and mandatory consistency. HPM-MVS++ has a total of 18 passes / image, the most among the audited algorithms.
+
+
+MP-MVS @mp_mvs approaches the multi-scale from the opposite side than ACMM @acmh_acmm. Instead of resizing the images, it resizes the patch match window dynamically in a multi-scale fashion. It argues the image-pyramid rescaling and per-scale optimization increases the running cost and redundancy, while the upsampling introduces accuracy loss. MP-MVS is the only work across the lineage that directly addresses the performance problem of the lineage and improves the performance while keeping or exceeding the quality. The paper claims a 17% faster depth-map estimation than @acmmp while surpassing it in F1-score for both indoor and outdoor scenes.
+
+APD-MVS @apd builds directly on top of ACMH. It separates reliable and unreliable pixels of a reference image, where the latter have ambigous matches and are mostly related to textureless surfaces. It introduces an adaptive patch window deformation strategy to improve the cost profile of unreliable pixels by anchoring them to reliable ones, based on the idea of deformable convolution kernels from recent learning based methods. DPE-MVS @dpe descends from APD-MVS and extends it edge map guidance for the reliable pixel search and sampling. Their dual-level precision edge maps is built from combining multiple classical approaches such as Canny edge detection, and the Roberts operator with Hough line detection @tsar. They avoid using generalized segmentation models such as SAM @kirillov2023_segment_anything, regarding their inference speed to be inadequate for an already heavy computation pipeline. On the contrary, DVP-MVS @dvp builds a similar edge-aware guidance for deformable PatchMatch but combines a monocular depth prior from Depth-Anything V2 @yang2024depth_anything_v2 with the same Roberts+Hough edge segmentation @tsar. 
+
+
+== Cuda Multi-View Stereo from Fixstars
+
+CUMVS is a production-grade reimplementation of ACMH by the Japanese company, Fixstars. The work is directly focusing on the performance improvement and real world adaptability of the PatchMatch propagation. 
+
 
 
 
