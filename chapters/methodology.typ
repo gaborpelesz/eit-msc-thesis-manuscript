@@ -1,4 +1,5 @@
 #import "../template/elteikthesis.typ": *
+#import "figures/acmm-sampling.typ": *
 
 // booktabs-style rules: top, below header, bottom; no vertical lines
 #let _rule(w) = table.hline(stroke: w)
@@ -8,6 +9,14 @@
 // subgroup inside a group: tells how often the phases below it occur
 #let _subgroup(cols, body) = table.cell(colspan: cols, inset: (left: 5pt + 1em, top: 5pt, bottom: 2pt),
   text(size: 8pt, emph(body)))
+
+// Pseudo-code block: left-aligned, with full-height lines so that the
+// sub- and superscripts of neighbouring lines do not touch.
+#let pseudo(..lines) = {
+  set align(left)
+  set text(top-edge: "ascender", bottom-edge: "descender")
+  algorithmic(..lines)
+}
 
 // #include "measurement-tables.typ"
 #let timing-table = [#figure(
@@ -179,7 +188,7 @@ The dataset features 13 scenes with provided ground-truth for a training set. It
 
 Almost none of the selected algorithms publishes results for native resolution ($6221$ x $4146$ px) on ETH3D images. They explicitly state that their published results resized images at 3200px in their implementation @acmh_acmm @acmp @acmmp @hpm @hpm_plusplus @mp_mvs all based on the decision of @colmap_mvs. APD-MVS and DPE-MVS publishes results primarely for native resolution @apd @dpe. Note, that the resizing step is slightly different as CUMVS uses area averaging and other methods generally use bilinear interpolation with no anti-aliasing. Fixed constant pixel-based settings in the PatchMatch kernels change meaning with resolution such as window size, or step size, geometric consistency limits, planar prior grid size, propagation reach. Therefore, the benchmarking keeps the problem of resizing to the authors choice, and considers this step as part of their proposed reconstruction system.
 
-Although it is interesting from an algorithm evaluation perspective to observe the behavior of the implementations at lower resolutions, it will also keep the choice of resizing to 3200px or keeping the native resolution parameter. 3D reconstruction software usually provide the ability to (either explicitly or implicitly through "quality" flags) rescale the images to a lower resolution to make the reconstruction faster. Some work also states that their have run at least part of their evaulations on lower resolutions #todo[cite!]. However, only CUMVS and MP-MVS provide a way to set the maximum image size externally, all the other methods' implementations compile this choice into the final program. A selected algorithm will be analysed further in #ref(<selected-method-analysis>).
+Although it is interesting from an algorithm evaluation perspective to observe the behavior of the implementations at lower resolutions, it will also keep the choice of resizing to 3200px or keeping the native resolution parameter. 3D reconstruction software usually provide the ability to (either explicitly or implicitly through "quality" flags) rescale the images to a lower resolution to make the reconstruction faster. Some work also states that their have run at least part of their evaulations on lower resolutions #todo[cite!]. However, only CUMVS and MP-MVS provide a way to set the maximum image size externally, all the other methods' implementations compile this choice into the final program. A selected algorithm will be analysed further in #ref(<apd-mvs-analysis>).
 
 /*Generally, production-grade scanning systems produce a stream of images at lower resolutions than they are captured in ETH3D. Otherwise, 3D reconstruction software usually provide the ability to (either explicitly or implicitly through "quality" flags) rescale the images to a lower resolution to make the reconstruction faster. Many papers also state that they have run at least part of their evaulations on lower resolutions #todo[cite!]. Thus, apart from the native resolution, the benchmark defines two downsampled variants at half (3200px width) and at quarter (1600px width) the resolution of the original images (around 6200px width). To minimize loss of image quality while preparing the dataset, the benchmarking system handles the rescaling using JPEG q100 4:4:4 re-encoding with Hamming windows for anti-aliasing.*/
 
@@ -255,7 +264,7 @@ Furthermore, all forks are compiled directly to native NVidia `sm_120`.
 
 ==== hardware
 
-When selecting hardware for the benchmarking, the most important component for MVS evaluations is the GPU. DVP-MVS paper claims that a mainstream GPU has 24GB VRAM. This thesis does not agree with this statement. All methods are built using CUDA kernels so they vendor lock NVidia hardware. The only GPUs that have at least 24GB VRAM are the top consumer GPUs (3090, 4090, 5090) or workstation-grade alternatives. Most companies favor more affordable consumer GPUs for example 5070, or 5080 for production grade company clusters with 12GB-16GB VRAM. Especially for MVS, where for the traditional algorithms more compute can outweigh more VRAM, companies would probably choose two 5070 cards instead of a single 5080 #todo("lot of claims, any sources?"). 
+When selecting hardware for the benchmarking, the most important component for MVS evaluations is the GPU. DVP-MVS paper claims that a mainstream GPU has 24GB VRAM. This thesis does not agree with this statement. All methods are built using CUDA kernels so they vendor lock NVidia hardware. The only GPUs that have at least 24GB VRAM are the top consumer GPUs (3090, 4090, 5090) or workstation-grade alternatives. Most companies favor more affordable consumer GPUs for example 5070, or 5080 for production grade company clusters with 12GB-16GB VRAM. Especially for MVS, where for the traditional algorithms more compute can outweigh more VRAM, companies would probably choose two 5070 cards instead of a single 5080 #todo("lot of claims, any sources?").
 
 The benchmarking system uses Nvidia 5070 GPU with 12GB VRAM. The benchmark explicitly states out-of-memory crash states. For CPU, the system uses an AMD Ryzen 9 9950X3D 16-Core Processor and a Samsung SSD 990 EVO Plus 4TB for storage. The machine has 192GB DDR5 RAM.
 
@@ -266,6 +275,87 @@ Controlling the host requires us to pin the containers to use CPU threads 0-7,16
 == APD-MVS production ready reimplementation
 
 APD-MVS is one of the more recent approaches to help the patch-match window problem. The main contribution of this thesis is the integration of APD-MVS into CUMVS. #todo[slightly better intro once we have more content]
+
+This section starts with an overview of the ACMH/ACMM algorithm that serves as the foundation for APD-MVS. Then in #ref(<apd-mvs-overview>) the most important APD-MVS improvements will be described. These sections are providing the basic information on the algorithms to then understand the analysis of the different parts layed out in #ref(<apd-mvs-analysis>).
+
+=== ACMH/ACMM algorithm overview
+
+/*
+ACMM algorithm:
+- image-level view selection assembles image collections which consist of a reference image and N source images (neighbor images)
+- for each scale in the image pyramid scales
+  - if not first scale: upscale from previous
+  - go through all images with one photometric run, then all images with N geometric runs
+    - for each collection of images in each run:
+      - initialize planes and calculate initial cost
+        - if this is the first, then randomly initialize the planes, if not, assemble the planes from earlier depth and normal
+      - for each patchmatch propagation iteration:
+        - update black pixels
+        - update red pixels
+      - run median filter on resulting depth map
+*/
+
+The goal of the ACMM @acmh_acmm algorithm is to estimate one depth map per image. A _reference image_ $I_r$ defines the image being updated, at each step of the algorithm. The image-level view selection first assembles image collections by assigning a set of _source images_ $S_r$ to each $I_r$, with varying number of images included $n = |cal(S)_r| <= 20$, that are observing the same part of the scene. Every pixel $p$ of $I_r$ carries a _plane hypothesis_ $theta_p$, which gives a depth and a surface normal estimate. $theta_p$ defines a slanted image window centered around $p$ called a _patch_, and predicts where the patch appears in each source image $I_j in S_r$. The _matching cost_ $rho_j (theta_p)$ defines a metric to evaluate how good is the mapping of this _patch_ using the plane hypothesis. The cost in ACMM calculates a bilaterally weighted Zero-mean Normalized Cross-Correlation (ZNCC) between two grayscale images and their patches using each pixel's intensity value. The algorithm uses $rho_j (theta_p) = 1 - "zncc"_j (theta_p)$ to define the cost from the correlation, i.e., 0 is a perfect match while 2 is the worst. The weighted mean is taken across $S_r$ to combine all costs.
+
+$ "Cost"(theta_p, w_p) = (sum_(j in S_r) w_p_j dot rho_j (theta_p)) / (sum_(j in S_r) w_p_j), $ <eq:acmm-cost>
+
+where the view weights $w_p$ are different for each pixel that was set through the pixel-wise joint view selection mechanism @acmh_acmm.
+
+The images of the scene are processed in a multi-scale image pyramid fashion from coarsest to finest. In ACMM's implementation and default parameters, there are 3 _scale_ levels in total. Each scale runs $1 + N_"geom"$ _passes_ over all reference images, where $N_"geom"$ is the number of geometric passes (ACMM default is $N_"geom" = 2$):
+- _photometric_ pass: uses only the bilateral ZNCC cost, starts from random planes or from the an upsampled previous scale result
+- _geometric_ pass: starts from the result of the previous pass, and defines an additional geometric term in the cost that uses the source images' depth maps to calculate an additional reprojection error.
+
+#ref(<alg:acmm-reconstruction>) shows the high-level overview of the steps and it matches the outline that #ref(<table-timing-measurements>) proposed for time measurements.
+
+#algorithm(caption: [ACMM: Multi-scale PatchMatch reconstruction])[
+  #algorithmic(
+    (0, [*Input:* $N$ images, $M$ cameras and the image collection {$I_1 union S_1, dots, I_(|N|) union S_(|N|)}$]),
+    (0, [*Output:* point cloud $cal(P)$]),
+    (0, [*for each* scale $s$, from coarsest to finest, *do*]),
+    (1, [*if* $s$ is *not* the coarsest scale *then*]),
+    (2, [*for each* $r in {1, dots, N}$ *do* upsample $D_r$ and $N_r$ to scale $s$], none, <alg:acmm-upsample>),
+    (1, [*for each* $r in {1, dots, N}$ *do* ImagePass$(r, s, "\"photometric\"")$]),
+    (1, [*repeat* $N_"geom"$ times]),
+    (2, [*for each* $r in {1, dots, N}$ *do* ImagePass$(r, s, "\"geometric\"")$], none, <alg:acmm-geom>),
+    (0, [$cal(P) <-$ fuse all $D_r$ and $N_r$ of the finest scale]),
+  )
+] <alg:acmm-reconstruction>
+
+The core of the _ImagePass_ is the PatchMatch iterations running on device. The iterations are running the diffusion-like propagation, where each pixel is considered red or black based on their position in the checkerboard pattern. This propagation scheme ensures that a pixel's neighbors are not updated and can be used without worrying about race conditions when updating each pixel concurrently. 
+
+#algorithm(caption: [ImagePass$(r, s, "phase")$: one reference image pass])[
+  #algorithmic(
+    (0, [load $I_r$ and $S_r$ with their cameras $C$ at scale $s$], emph[input loading]),
+    (0, [*if* $s$ is *not* the finest scale *then*]),
+    (1, [*for each* $r in {1, dots, N}$ *do* upsample $D_r$ and $N_r$ to scale $s$], none, <alg:acmm-upsample>),
+    (0, [copy $C$, $I_r$, $S_r$, $D_r$, and $N_r$ to the device], emph[device upload]),
+    (0, [*for each* pixel $p$ *in parallel do*], emph[initialization]),
+    (1, [*if* $"phase" = "\"photometric\""$ *then* $theta_p <-$ a random plane]),
+    (1, [*else* $theta_p <-$ the loaded plane]),
+    (1, [$c_p, V_p <-$ initial cost and selected views of $theta_p$]),
+    (0, [*for* $t = 1, dots, T_"phase"$ *do*], emph[propagation]),
+    (1, [*for each* black pixel $p$ *in parallel do* UpdatePixel$(p, t)$], none, <alg:acmm-black>),
+    (1, [*for each* red pixel $p$ *in parallel do* UpdatePixel$(p, t)$], none, <alg:acmm-red>),
+    (0, [convert every $theta_p$ to a depth and a normal; median-filter the depths], emph[finalization]),
+    (0, [copy the planes and costs to the host], emph[readback]),
+    (0, [unpack them into $D_r$, $N_r$ and $C_r$], emph[result unpacking]),
+    (0, [write $D_r$, $N_r$ and $C_r$ to disk], emph[depth map writing]),
+  )
+] <alg:acmm-imagepass>
+
+
+
+
+#figure(
+  panel-candidates(size: 8.64),
+  caption: [ACMH propagation and pixel sampling where pixels are split into a red and black in a checkerboard, marked by the dots. Same colored pixels are updated in parallel. The eight sampling regions of the current pixel $p$ (black in the center) are shaded in light red: four V-shaped regions around $p$ and four strips further out that continue to a distance of 23 pixels (beyond the window shown). The pixel with the lowest current cost in each region (yellow) passes its plane to $p$ as a candidate.],
+) <acmm-sampling-figure>
+
+
+
+=== APD-MVS <apd-mvs-overview>
+
+APD-MVS is an extension for ACMH @acmh_acmm
 
 === APD-MVS integration into CUMVS
 
@@ -345,7 +435,28 @@ APD-MVS writes each image iteration's depths, normals and unreliable pixel masks
 During PatchMatch propagation, a single image's data structure stores its: colour and grayscale image (4 bytes / px), its depth map (4 bytes / px), its normal map (3 x 4 bytes / px), and its unreliable pixel map (1 byte / px). For a native resolution ETH3D image that is 541 MB per image. Running APD-MVS integration on `pipes` scene peaks at 13.8 GB host RAM usage.
 
 
-=== Runtime decomposition, algorithmic cost, and analysis <selected-method-analysis>
+=== Runtime decomposition, algorithmic cost, and analysis <apd-mvs-analysis>
+
+/*
+obvious inefficient implementation decisions:
+- ACMH uses F32 RGB images. They are converting a uint image to float. They could use texture acces on float images I think which might lead to perf increase due to lower memory traffic. This needs to come from a measurement though: measurement should show that we are memory bound!
+```cpp
+image_uint.convertTo(image_float, CV_32FC1);
+images.push_back(image_float);`
+```
+
+
+
+TODO
+- Always ask: are we memory bound or compute bound, why?
+
+- generally we should do a deep measurement and performance analyses of APD-MVS integrated into CUMVS. We need to plan this out and understand what we are going to measure. This has to be written down, and this will drive the GPU background section
+- I have to better understand the implementation of APD-MVS.
+- introduce CUMVS improvements into APD-MVS and see whether we can gain easy performance using these methods
+- analyse quorum-mvs and see if it made the CUMVS improvements itself, if not, why not and what did it do instead
+- octahedral normals are a likely interesting thing to try
+*/
+
 
 The work continues by closely examining the performance characteristics of the APD-MVS integration. First it depicts the contributing factors, then examines them carefully to find performance improvement opportunities. It analyzes the stages of the MVS algorithm that take the most time, and focuses on applying Amdahl's law to find the best targets for optimization.
 
