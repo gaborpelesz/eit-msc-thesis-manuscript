@@ -321,7 +321,7 @@ The images of the scene are processed in a multi-scale image pyramid fashion fro
   )
 ] <alg:acmm-reconstruction>
 
-The core of the _ImagePass_ is the PatchMatch iterations running on device. The iterations are running the diffusion-like propagation, where each pixel is considered red or black based on their position in the checkerboard pattern. This propagation scheme ensures that a pixel's neighbors are not updated and can be used without worrying about race conditions when updating each pixel concurrently. 
+The core of the _ImagePass_ is the PatchMatch iterations running on device. The iterations are running the diffusion-like propagation, where each pixel is considered red or black based on their position in the checkerboard pattern (see #ref(<fig:acmm-sampling>)). This propagation scheme ensures that a pixel's neighbors are not updated and can be used without worrying about race conditions when updating each pixel concurrently.#footnote[This is the pattern of the ACMM paper, and the one APD-MVS implements. In ACMM's released code, five of the six distinct pixels of each V-shaped region have the colour of $p$, so it reads pixels that are being updated at the same time.] 
 
 #algorithm(caption: [ImagePass$(r, s, "phase")$: one reference image pass])[
   #algorithmic(
@@ -343,13 +343,47 @@ The core of the _ImagePass_ is the PatchMatch iterations running on device. The 
   )
 ] <alg:acmm-imagepass>
 
+The _ImagePass_ is responsible for initializing the current plane parameter estimates, either randomly, or from the previous state. The cost for the current estimates is always recalculated. Notice, that PatchMatch can start from any initialization.
+
 
 
 
 #figure(
   panel-candidates(size: 8.64),
-  caption: [ACMH propagation and pixel sampling where pixels are split into a red and black in a checkerboard, marked by the dots. Same colored pixels are updated in parallel. The eight sampling regions of the current pixel $p$ (black in the center) are shaded in light red: four V-shaped regions around $p$ and four strips further out that continue to a distance of 23 pixels (beyond the window shown). The pixel with the lowest current cost in each region (yellow) passes its plane to $p$ as a candidate.],
-) <acmm-sampling-figure>
+  caption: [ACMH propagation and pixel sampling where pixels are split into a red and black in a checkerboard, marked by the dots. Same colored pixels are updated in parallel. The eight sampling regions of the current pixel $p$ (black in the center) are shaded in light red: four V-shaped regions around $p$ and four lines further out that continue to a distance of 23 pixels (beyond the window shown). The pixel with the lowest current cost in each region (yellow) passes its plane to $p$ as a candidate.],
+) <fig:acmm-sampling>
+
+The _UpdatePixel_ function (#ref(<alg:acmm-pixel>)) consists of four main steps: sampling, view selection, propagation, refinement.
+
+*Sampling* (adaptive checkerboard sampling) takes an input pixel with its current plane estimate and defines eight distinct _sampling areas_ that surround the pixel in four V-shaped regions (up, right, bottom, left), and four straight lines in each direction (#ref(<fig:acmm-sampling>)). For each pixel of each sampling area the algorithm calculates the matching cost across all source images, and from each area, the pixel with the lowest cost is taken as a candidate plane.
+
+*View selection* (multi-hypothesis joint view selection) decides which source images to trust based on two assumptions:
+1. Bad views generally have low photometric consistency across all eight sampling candidates while good views generally have at least some candidates with high consistency.
+2. A view that has high photometric consistency with $p$'s direct neighbors will probably also observe $p$.
+Thus, ACMH defines a voting scheme where a source image is likely to be drawn if, with it, several of the eight candidates match well and if pixels in $p$'s 4-connected neighborhood also select it.
+
+*Propagation* adopts the best candidate if its cost is lower than the $p$'s current plane after weighting them with the view selection prior. Otherwise, it keeps the current estimate as the result of the propagation.
+
+*Refinement* tries alternative variations (five in ACMH) of the propagation result that combine its depth and normal with randomly perturbed and freshly drawn values. This step is crucial, as it slightly alters the current estimate to better fit the local structure, and it introduces new samples for the whole PatchMatch state space that other pixels can utilize.
+
+
+#algorithm(caption: [UpdatePixel$(p, t)$: update of one pixel])[
+  #algorithmic(
+    (0, [#strong[for] $a = 1, dots, 8$ #strong[do]], [sampling], <alg:acmm-sample>),
+    (1, [$hat(theta)_a <-$ plane of the lowest-cost pixel in region $a$]),
+    (1, [$rho_(a,j) <- rho_j (hat(theta)_a)$ for every $j in cal(S)_r$], [$8 n$ NCC]),
+    (0, [$w <-$ SelectViews$(rho, t)$], [view selection], <alg:acmm-views>),
+    (0, [$c_p <-$ Cost$(theta_p, w)$], [$n$ NCC]),
+    (0, [$c_a <-$ Cost$(hat(theta)_a, w)$ for every $a$;#h(0.6em) $b <- arg min_a c_a$], [reuses $rho_(a,j)$]),
+    (0, [#strong[if] $c_b < c_p$ #strong[then]], [propagation], <alg:acmm-prop>),
+    (1, [$theta_p <- hat(theta)_b$;#h(0.6em) $c_p <- c_b$;#h(0.6em) $V_p <- {j : w_j > 0}$]),
+    (0, [#strong[for each] of the five variations $theta'$ of $theta_p$ #strong[do]], [refinement], <alg:acmm-refine>),
+    (1, [$c' <-$ Cost$(theta', w)$], [$n$ NCC each]),
+    (1, [#strong[if] $c' < c_p$ #strong[then] $theta_p <- theta'$;#h(0.6em) $c_p <- c'$]),
+  )
+] <alg:acmm-pixel>
+
+
 
 
 
@@ -362,7 +396,7 @@ APD-MVS is an extension for ACMH @acmh_acmm
 This section describes the integration process and the differences between the integrated and the original performance of APD-MVS. The work starts by integrating APD-MVS as a propagation backend into CUMVS. CUMVS already supports multiple backends and implements Gipuma- and ACMH-style propagation and allows for switching between the backends using a Command-Line Interface (CLI) flag. The first goal of the thesis is to achieve a seemless integration where the F1-score results are similar to the original APD-MVS implementation.
 
 
-==== View selection
+==== Image-level view selection
 
 CUMVS employs a slightly different strategy for view selection strategy than the converter tool that many MVS forks use. The two implementations use completely opposite ordering for the images because CUMVS indexes images in line order from the input file, while APD's converter indexes images by sorted image IDs. The integration uses CUMVS ordering because the ordering had no measured effect on the quality.
 
@@ -445,8 +479,6 @@ image_uint.convertTo(image_float, CV_32FC1);
 images.push_back(image_float);`
 ```
 
-
-
 TODO
 - Always ask: are we memory bound or compute bound, why?
 
@@ -460,8 +492,7 @@ TODO
 
 The work continues by closely examining the performance characteristics of the APD-MVS integration. First it depicts the contributing factors, then examines them carefully to find performance improvement opportunities. It analyzes the stages of the MVS algorithm that take the most time, and focuses on applying Amdahl's law to find the best targets for optimization.
 
-
-
+The work of _UpdatePixel_ (#ref(<alg:acmm-pixel>)) is dominated by NCC evaluations and it is the main cost of runtime. One update evaluates $(8 + 1 + 5) dot n = 14 n$ of them, and each compares an $11 times 11$ window sampled at every second pixel, that is $6 times 6 = 36$ samples, after warping it into the source image with the homography that the plane induces. An iteration updates every pixel once, so a photometric pass over a $W times H$ image with $n = 20$ and $T_m = 3$ evaluates about $3 dot 14 dot 20 dot W H = 840 W H$ windows, and its initialization another $20 W H$.
 
 /*
 Itt van az algoritmus leirasa es kidolgozasa
@@ -485,7 +516,8 @@ There is no reason why I shouldn't use and fork CUMVS as my primary baseline for
 
 instead of Quorum MVS, do an ablation study based on the selected algorithm (for example APD-MVS or MP-MVS). Change only a single component at a time, for example remove the JPEG re-encoding and measure how it affects the system, and move component by component to show how we are slowly improving the system. Move in small iterations and do the same when making the system into a production system. Make sure we stay bit-identical for performance improvements, and make sure we measure as ablation when we are deviating from the original implementation.
 */
+
 #todo[ablation study]
 
-focus on production implementation considerations, plus performance considerations
+/*focus on production implementation considerations, plus performance considerations*/
 
