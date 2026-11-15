@@ -352,7 +352,7 @@
 #let run-breakdown-figure = [#figure(
   kind: image,
   caption: flex-caption([
-    Runtime analysis of production APD-MVS (the algorithm of APD-MVS @apd, integrated into CUMVS) on ETH3D _#_scene;_ at native resolution. #_timing-ref defines the timing stages. Timing shows the baseline measurements before any optimization.
+    Runtime analysis of CUMVS(APD) (the algorithm of APD-MVS @apd, integrated into CUMVS) on ETH3D _#_scene;_ at native resolution. #_timing-ref defines the timing stages. Timing shows the baseline measurements before any optimization. In APD-MVS, the planar prior is conceptually built into PatchMatch, so its time is shown as of PatchMatch's.
   ], [Runtime analysis of the baseline APD-MVS integration by pass and by stage]),
   // a grid, so that the distances between the parts do not depend on the paragraph spacing of
   // the surrounding document

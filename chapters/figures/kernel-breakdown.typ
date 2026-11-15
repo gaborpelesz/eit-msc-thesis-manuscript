@@ -39,7 +39,7 @@
   "InitRandomStates": [one random generator per pixel],
   "FindNearestStrongPoint": [nearest reliable pixel],
   "GenNeighbours": [anchor selection],
-  "NeigbourUpdate": [anchorless pixels leave unreliable set],
+  "NeigbourUpdate": [removes anchorless pixels],
   "RandomInitialization": [initial planes and their costs],
   "Black/RedPixelUpdateStrong": [update of all but unreliable pixels],
   "Black/RedPixelUpdateWeak": [update of the unreliable pixels],
@@ -47,7 +47,7 @@
   "GetDepthandNormal": [planes to depth and normal],
   "Black/RedPixelFilterStrong": [median filter of the depths],
   "DepthToWeak": [reliability evaluation],
-  "LocalRefine": [local depth search around the result],
+  "LocalRefine": [local depth search],
 )
 // kernels that only have work on unreliable pixels (early return or plain copy otherwise)
 #let _unreliable-only = ("FindNearestStrongPoint", "GenNeighbours", "NeigbourUpdate", "RANSACToGetFitPlane", "Black/RedPixelUpdateWeak")
@@ -180,7 +180,7 @@
       out += _cols.map(c => (c.stage)(r.s))
     } else {
       // name and description as one unit; a description never wraps (keep it short)
-      out.push(pad(left: 1em, stack(spacing: _role-gap, raw(r.k.name),
+      out.push(pad(left: 1em, stack(spacing: _role-gap, text(size: 8pt, r.k.name),
         ..if _show-roles { (box(text(size: 7pt, fill: _muted, _role.at(r.k.name))),) })))
       out += _cols.map(c => (c.kernel)(r.k))
     }
@@ -229,6 +229,8 @@
   let v = _d.kernels.filter(k => k.total_s > 1).map(k => 100 * k.round_s.last() / k.total_s)
   (calc.floor(calc.min(..v)), calc.ceil(calc.max(..v)))
 }
+
+/*
 #let _notes = {
   // the template's strut, set here too so that the notes look the same in a stand-alone preview
   set text(size: 8pt, top-edge: 0.7em, bottom-edge: -0.3em)
@@ -244,12 +246,13 @@
     _Counts._ Each of the #_d.passes reference image passes makes the same #_d.launches_per_pass launches: the kernels of the #_iter-stages.map(s => _stage-name.at(s)).join([ and the ]) once in each of the #_d.iterations iterations, every other kernel once. In round 1 no pixel is unreliable, so #_names(_round1-idle) have no unreliable pixel to work on there: their #_round1-idle.map(k => k.round_launches.at(0)).sum() launches take #_one(_round1-idle.map(k => k.round_s.at(0)).sum())~s together.
   ]
 }
+*/
 
 #let kernel-breakdown-table = [#figure(
   kind: table,
   caption: flex-caption([
-    GPU kernel time of the baseline run of production APD-MVS (the algorithm of APD-MVS @apd, re-engineered by the author inside the CUMVS frontend) on ETH3D _#_scene;_ at native resolution, by kernel, stage (#_timing-ref) and round. Same run as #_stage-ref: a single analysis run on the development machine (#_ctx.gpu.replace("NVIDIA GeForce ", ""), unlocked clocks, #_profiler), not a benchmark measurement.
-  ], [GPU kernel time of the baseline run of production APD-MVS by kernel]),
+    GPU kernel times of the baseline run of CUMVS(APD) on ETH3D _#_scene;_ at native resolution. Results are shown by kernel, stage (#_timing-ref) and round. Same run as #_stage-ref.
+  ], [GPU kernel times of the baseline run of CUMVS(APD)]),
   block(breakable: false, {
     // the template's strut, set here too so that rows look the same in a stand-alone preview
     set text(size: 9pt, top-edge: 0.7em, bottom-edge: -0.3em)
@@ -270,8 +273,8 @@
       _rule(0.5pt),
       ..([all kernels], .._cols.map(c => c.total), []).map(c => table.cell(inset: (x: 5pt, y: 4pt), c)),
       table.cell(colspan: 2 + _cols.len(), inset: (x: 5pt, top: 1pt, bottom: 4pt), _legend),
-      _rule(0.5pt),
-      table.cell(colspan: 2 + _cols.len(), align: left + top, inset: (x: 5pt, top: 4pt, bottom: 4pt), _notes),
+      // _rule(0.5pt),
+      // table.cell(colspan: 2 + _cols.len(), align: left + top, inset: (x: 5pt, top: 4pt, bottom: 4pt), _notes),
       _rule(1pt),
     )
   }),
