@@ -33,6 +33,12 @@ jobs:
           enable-cache: true
           cache-dependency-glob: generated/**/scripts/*.py
 
+      # Figures and the JSON files the chapters read are not committed: they are generated here
+      # from the data and scripts under generated/ (uv for the plots; the runner's python3,
+      # standard library only, for generated/baseline-run/derived/).
+      - name: Generate figures and figure data
+        run: make figures
+
       - name: Compile
         run: |
           if [ "$GITHUB_REF_TYPE" = tag ]; then

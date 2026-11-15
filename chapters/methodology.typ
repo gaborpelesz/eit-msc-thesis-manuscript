@@ -1,5 +1,7 @@
 #import "../template/elteikthesis.typ": *
 #import "figures/acmm-sampling.typ": *
+#import "figures/kernel-breakdown.typ": kernel-breakdown-table
+#import "figures/run-breakdown.typ": run-breakdown-figure
 
 // booktabs-style rules: top, below header, bottom; no vertical lines
 #let _rule(w) = table.hline(stroke: w)
@@ -521,7 +523,7 @@ APD-MVS builds its CUDA kernels using `--maxrregcount=128` and `--use_fast_math`
 ) <tab:apd-device-flags>
 
 
-==== Intermediate artifacts storage: in-memory vs. disk
+==== Intermediate artifacts storage: in-memory vs. disk <sec:apd-cumvs-inmemory>
 
 APD-MVS writes each image iteration's depths, normals and unreliable pixel masks to disk and reads them back in later passes. This host I/O takes up 22-23% of APD-MVS wall-time. Meanwhile, CUMVS stores all images in-memory. Eventhough this not being a scalable approach, the integration first uses an in-memory storage to minimize deviation from default CUMVS behavior.
 
@@ -532,8 +534,11 @@ During PatchMatch propagation, a single image's data structure stores its: colou
 
 The work continues by closely examining the performance characteristics of the APD-MVS integration. First it depicts the contributing factors, then examines them carefully to find performance improvement opportunities. It analyzes the stages of the MVS algorithm that take the most time, and focuses on finding the best targets for optimization.
 
-The work will use `pipes` scene from ETH3D @eth3d_dataset which contains only 14 images, providing a way for quick iterations. For confirmations that gains hold at scale, `office` and `playground` will be used. The former to support larger textureless areas, the latter to confirm on scenes with less textureless areas. Finally, all of the scenes will be run to show an overall improvement across all scenes. The optimization attempts focus on improvements that retain the F1-score of the algorithm. F1 spread has been measured in #ref(<sec:benchmark-dimensioning>) as a baseline and the same benchmarking methodology will be used to confirm quality for the non-deterministic runs with confidence interval #ref(<eq-ci>).
+The work will use *pipes* scene from ETH3D @eth3d_dataset which contains only 14 images, ideal for quick measurements. *office* and *playground* will be used to confirm that gains hold at scale. The former to support the claim on larger textureless surfaces, the latter to confirm on scenes with more textured objects. Finally, the result will be run across all scenes to show an overall improvement. The optimization attempts to focus on improvements that retain the F1-score of the algorithm. The F1 spread has been measured in #ref(<sec:benchmark-dimensioning>) serves as a baseline and the same benchmarking technique will be used to confirm quality stay around the mean.
 
+#run-breakdown-figure
+
+In this method the planar prior is built inside the PatchMatch call, so its time is part of PatchMatch's.
 
 
 ---
@@ -545,6 +550,8 @@ The work of _UpdatePixel_ (#ref(<alg:acmm-pixel>)) is dominated by NCC evaluatio
 1. high-level overview on the timings: detailed timings for all steps in APD-MVS, list kernels with timings. Use the CUMVS integration. Analyse the core contributors to time, provide conclusions on what is consuming the most time and why.
   - notice that the 20-23% host-I/O is due to APD-MVS writing the depth, the normals, the cost, the views-selection results, and the weak masks
 2. what is the theoretical maximum Gflop/s for 5070TI? How are some of our kernels doing on average compared to it?
+
+#kernel-breakdown-table
 
 /*
 Simple ideas:

@@ -1,4 +1,11 @@
 # Build output
 build/
 
+# generated figures
+generated/results-*
+generated/figures/
+generated/baseline-run/derived/
+
+# misc
 .DS_Store
+__pycache__

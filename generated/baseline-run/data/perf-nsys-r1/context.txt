@@ -1,0 +1,13 @@
+date_utc=2026-11-09T23:47:54Z
+host=ilka0
+mode=nsys
+image=sha256:a9d03cb7ac95fd68a74c33eb7f74dcd6aef318c1af08b614e08a407141304bef (production-apd-mvs:apd-c1b3ad8)
+repo_head=95c92945ce48815268a6007ef3629262d3470585 (main)
+app_args=/work/prepared --output-directory=/out --max-image-size=8192 --apd
+ncu_args=
+name, driver_version, persistence_mode, clocks.current.sm [MHz], clocks.current.memory [MHz], clocks.max.sm [MHz], power.limit [W], temperature.gpu
+NVIDIA GeForce RTX 5070 Ti, 615.71.09, Disabled, 180 MHz, 405 MHz, 3090 MHz, 300.00 W, 36
+pid, process_name
+cmd=/nsys/bin/nsys profile -o /out/timeline --trace=cuda,nvtx,osrt,opengl --cuda-memory-usage=true --sample=process-tree --cpuctxsw=process-tree --backtrace=none --stats=false /usr/local/bin/app_patch_match_mvs /work/prepared --output-directory=/out --max-image-size=8192 --apd
+method_wall_s=1124.490915843
+after: 180 MHz, 34

@@ -1,0 +1,17 @@
+config,run,kernel,launches,total_ns,registers,block_size
+base,perf-nsys-r1,BlackPixelFilterStrong,224,217824488,30,512
+base,perf-nsys-r1,BlackPixelUpdateStrong,672,28428995165,108,512
+base,perf-nsys-r1,BlackPixelUpdateWeak,672,246799057752,105,512
+base,perf-nsys-r1,DepthToWeak,224,78095244534,122,256
+base,perf-nsys-r1,FindNearestStrongPoint,224,94278909806,39,256
+base,perf-nsys-r1,GenNeighbours,224,65182788550,83,256
+base,perf-nsys-r1,GetDepthandNormal,224,82084733,26,256
+base,perf-nsys-r1,InitRandomStates,224,10692588537,61,256
+base,perf-nsys-r1,LocalRefine,224,15435365666,113,256
+base,perf-nsys-r1,NeigbourUpdate,224,18038383,16,256
+base,perf-nsys-r1,RANSACToGetFitPlane,672,3631908732,75,256
+base,perf-nsys-r1,RandomInitialization,224,1774521452,88,256
+base,perf-nsys-r1,RedPixelFilterStrong,224,203710903,30,512
+base,perf-nsys-r1,RedPixelUpdateStrong,672,28539529246,108,512
+base,perf-nsys-r1,RedPixelUpdateWeak,672,246726769565,105,512
+base,perf-nsys-r1,__run_phase_timer__,,1106465562953,,

@@ -15,7 +15,7 @@ the measurements and generated tables quoted here.
 | `main.typ` | entry point: metadata, front matter, chapters, back matter |
 | `chapters/*.typ` | the chapters |
 | `thesis.bib` | bibliography (BibTeX) |
-| `generated/` | tables generated in the superproject (see below); never edited by hand |
+| `generated/` | tables generated in the superproject, and data with the scripts that turn it into figures (see below); never edited by hand |
 | `images/` | figures; `elte_cimer_szines.pdf` is the ELTE logo |
 | `template/` | the ELTE FI thesis template (Typst port of elteikthesis, see below) |
 | `template/fonts/` | Latin Modern fonts used by the template |
@@ -165,6 +165,21 @@ Tables in `generated/` come from the superproject and are never edited here:
 
 Workflow: render in the superproject, commit the files here, then bump this
 submodule in the superproject.
+
+## Generated figure data
+
+Some figures are drawn by Typst from data, and their data is generated here, not
+in the superproject. `make figures` runs the scripts; `make build` and
+`make watch` run it first, and so does the CI build. The outputs are git-ignored
+and never committed; the inputs and the scripts are.
+
+- `generated/dimensioning/` — `data/` and `scripts/` for the plot written to
+  `generated/figures/` (needs `uv`).
+- `generated/baseline-run/` — the baseline run of production APD-MVS: run files
+  in `data/<run>/`, scripts in `scripts/` (needs `python3`, standard library
+  only), JSON for `chapters/figures/run-breakdown.typ` and
+  `chapters/figures/kernel-breakdown.typ` in `derived/<run>/`. Its `README.md`
+  says how the run was made and how to repeat it.
 
 ## Licences
 
