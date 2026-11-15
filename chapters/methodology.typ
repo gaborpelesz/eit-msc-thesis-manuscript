@@ -274,7 +274,7 @@ For controlling the experiments the 5070 GPU's streaming multiprocessor (SM) clo
 
 Controlling the host requires us to pin the containers to use CPU threads 0-7,16-23 because of the 9950X3D dual CCD design having 96 MB L3 cache for these 16 threads, while having only 32 MB for the other 16. A method that is only running on the latter would be in disadvantage compared to the others that run only on the former. Apart from this, the benchmark sets the CPU governor and the Energy Performance Preference (EPP) to performance mode, and turn the CPU frequency scaling. However, the CPU frequency scaling on is left on as it didn't provide significant differences in wall time, and the AMD 9950X3D CPU can sustain boosted frequencies indefinitely. #todo[could link https://gamersnexus.net/cpus/amd-ryzen-9-9950x3d-cpu-review-benchmarks-vs-9800x3d-285k-9950x-more]
 
-== APD-MVS production ready reimplementation
+== Selected method decomposition
 
 APD-MVS is one of the more recent approaches to help the patch-match window problem. The main contribution of this thesis is the integration of APD-MVS into CUMVS. #todo[slightly better intro once we have more content]
 
@@ -454,7 +454,7 @@ APD-MVS @apd is an extension for ACMM @acmh_acmm focusing on textureless regions
 
 === APD-MVS integration into CUMVS
 
-This section describes the integration process and the differences between the integrated and the original performance of APD-MVS. The work starts by integrating APD-MVS as a propagation backend into CUMVS. CUMVS already supports multiple backends and implements Gipuma- and ACMH-style propagation and allows for switching between the backends using a Command-Line Interface (CLI) flag. The first goal of the thesis is to achieve a seemless integration where the F1-score results are similar to the original APD-MVS implementation.
+This section describes the integration process and the differences between the integrated and the original performance of APD-MVS. The work starts by integrating APD-MVS as a propagation backend into CUMVS, resulting in _CUMVS(APD)_. CUMVS already supports multiple backends and implements Gipuma- and ACMH-style propagation and allows for switching between the backends using a Command-Line Interface (CLI) flag. The first goal of the thesis is to achieve a seemless integration where the F1-score results are similar to the original APD-MVS implementation.
 
 
 ==== Image-level view selection
@@ -527,31 +527,53 @@ APD-MVS builds its CUDA kernels using `--maxrregcount=128` and `--use_fast_math`
 
 APD-MVS writes each image iteration's depths, normals and unreliable pixel masks to disk and reads them back in later passes. This host I/O takes up 22-23% of APD-MVS wall-time. Meanwhile, CUMVS stores all images in-memory. Eventhough this not being a scalable approach, the integration first uses an in-memory storage to minimize deviation from default CUMVS behavior.
 
-During PatchMatch propagation, a single image's data structure stores its: colour and grayscale image (4 bytes / px), its depth map (4 bytes / px), its normal map (3 x 4 bytes / px), and its unreliable pixel map (1 byte / px). For a native resolution ETH3D image that is 541 MB per image. Running APD-MVS integration on `pipes` scene peaks at 13.8 GB host RAM usage.
+During PatchMatch propagation, a single image's data structure stores its: colour and grayscale image (4 bytes / px), its depth map (4 bytes / px), its normal map (3 x 4 bytes / px), and its unreliable pixel map (1 byte / px). For a native resolution ETH3D image that is 541 MB per image. Running CUMVS(APD) on `pipes` scene peaks at 13.8 GB host RAM usage.
 
 
-=== Runtime decomposition, algorithmic cost, and analysis <apd-mvs-analysis>
+=== Runtime decomposition and analysis <apd-mvs-analysis>
 
-The work continues by closely examining the performance characteristics of the APD-MVS integration. First it depicts the contributing factors, then examines them carefully to find performance improvement opportunities. It analyzes the stages of the MVS algorithm that take the most time, and focuses on finding the best targets for optimization.
+/*
+ * The baseline is: https://github.com/gaborpelesz/production-apd-mvs/commit/cad21462540a71fb5cce8e5fc29793682fc10c11
+ */
 
-The work will use *pipes* scene from ETH3D @eth3d_dataset which contains only 14 images, ideal for quick measurements. *office* and *playground* will be used to confirm that gains hold at scale. The former to support the claim on larger textureless surfaces, the latter to confirm on scenes with more textured objects. Finally, the result will be run across all scenes to show an overall improvement. The optimization attempts to focus on improvements that retain the F1-score of the algorithm. The F1 spread has been measured in #ref(<sec:benchmark-dimensioning>) serves as a baseline and the same benchmarking technique will be used to confirm quality stay around the mean.
+The work continues by closely examining the performance characteristics of the CUVMS(APD). First it depicts the contributing factors, then examines them carefully to find performance improvement opportunities. It analyzes the stages of the MVS algorithm that take the most time, and focuses on finding the best targets for optimization. The runtime decomposition uses *pipes* scene from ETH3D @eth3d_dataset which contains only 14 images, ideal for quick measurements. *office* and *playground* will be used to confirm that gains hold at scale. The former to support the claim on larger textureless surfaces, the latter to confirm on scenes with more textured objects. Finally, the result will be run across all scenes to show an overall improvement. The optimization attempts to focus on improvements that retain the F1-score of the algorithm. The F1 spread has been measured in #ref(<sec:benchmark-dimensioning>) serves as a baseline and the same benchmarking technique will be used to confirm quality stay around the mean.
+
+#ref(<fig-run-breakdown>) shows the decomposition of a run with CUMVS(APD). A significant share is spent on *input loading/initialization* (\~14%), consisting of:
+- Converting unsigned integer images to 32-bit floating point images.
+- Collecting the required cameras for the reference and source images.
+- Downsampling RGB images
+- Upsampling depth images, normal images, unreliable pixel masks, and selected view images (when moving from a higher level in the scales)
 
 #run-breakdown-figure
 
-In this method the planar prior is built inside the PatchMatch call, so its time is part of PatchMatch's.
+A similar amount of runtime share (\~15.6%) goes to the *PatchMatch initialization kernel*. #ref(<table-kernel-breakdown>) details the composition of this stage where it shows that finding the anchors for the unreliable pixels dominate. The *finalization* step includes the (re-)classification of pixels into reliable and unreliable, which takes up another 7% of the total runtime (DepthToWeak kernel).
 
+The largest contribution (\~50%) is coming from the *propagation* itself. This is expected, as the propagation runs multiple iterations (1344 total calls compared to 224 initialization calls) and adds significant overhead to the unreliable pixels due to the added windows around the anchors. These new windows add more NCC evaluations and they are the main cost of runtime. One update evaluates $(8 + 1 + 5) dot n = 14 n$ of them, and each compares an $11 times 11$ window sampled at every second pixel. That is $6 times 6 = 36$ samples, after warping it into the source image with the homography that the plane induces. An iteration updates every pixel once, so a photometric pass over a $W times H$ image with $n = 20$ and $T_m = 3$ evaluates about $3 dot 14 dot 20 dot W H = 840 W H$ windows, and its initialization another $20 W H$.
+
+In total, 
+
+Notice, that the initialization, the propagation, and the finalization kernels run close to 4x the time to their previous scales, confirming that the runtime of the kernels scale linearly in the number of pixels processed. Finally, at the baseline completing a dense 3D reconstruction from a calibrated setup costs close to *80 seconds / image*.
+
+In total, input preprocessing, initialization kernel, propagation, and finalization takes up *88% of the total runtime*. These four stages are the focus of the next sections.
+
+#kernel-breakdown-table
+
+== CUMVS(APD) performance optimizations
+
+=== Hiding the input loading
+
+=== Efficient anchor search
+
+=== Propagation
+
+=== Reliability classification
 
 ---
 
-The work of _UpdatePixel_ (#ref(<alg:acmm-pixel>)) is dominated by NCC evaluations and it is the main cost of runtime. One update evaluates $(8 + 1 + 5) dot n = 14 n$ of them, and each compares an $11 times 11$ window sampled at every second pixel, that is $6 times 6 = 36$ samples, after warping it into the source image with the homography that the plane induces. An iteration updates every pixel once, so a photometric pass over a $W times H$ image with $n = 20$ and $T_m = 3$ evaluates about $3 dot 14 dot 20 dot W H = 840 W H$ windows, and its initialization another $20 W H$.
-
 #todo[what is the overhead of APD-MVS over ACMM exactly can we create an experiment where we turn off features from APD-MVS and see how much the runtime and the F1 score changes? This would let me give an argument of how much runtime are we paying for each percentage point. Then could use the same metric to show how much we improved for runtime over percentage point.]
 
-1. high-level overview on the timings: detailed timings for all steps in APD-MVS, list kernels with timings. Use the CUMVS integration. Analyse the core contributors to time, provide conclusions on what is consuming the most time and why.
-  - notice that the 20-23% host-I/O is due to APD-MVS writing the depth, the normals, the cost, the views-selection results, and the weak masks
 2. what is the theoretical maximum Gflop/s for 5070TI? How are some of our kernels doing on average compared to it?
 
-#kernel-breakdown-table
 
 /*
 Simple ideas:
@@ -613,3 +635,4 @@ instead of Quorum MVS, do an ablation study based on the selected algorithm (for
 
 /*focus on production implementation considerations, plus performance considerations*/
 
+#todo[hardware utilization chart]
