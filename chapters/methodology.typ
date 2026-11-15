@@ -218,7 +218,7 @@ The algorithms are building on the same algorithmic blocks with the same or simi
 
 No reconstruction method states the number of source images explicitly in its paper. Some define 10 source images for only their memory and runtime comparison without explaining the choice @apd @tsar @dvp. The implementations all agree on a maximum 20 sources per reference image, with the converter's view selection doing the rest. The shipped converter was mostly copied over from project to project, thus the selected views are generally byte-identical.
 
-==== Benchmark dimensioning
+==== Benchmark dimensioning <sec:benchmark-dimensioning>
 
 The MVS algorithms are non-deterministic, thus the benchmarking requires repeated execution to combat variance in results. To determine the number of necessary repeats during benchmarking prior work has to find the randomness factors, make sure that runs are independent, and estimate the variance. For this, the thesis carries out a dimensioning experiment to prepare the benchmarking run. During execution, uncontrolled variables can lead to bias in interpreting benchmarking results, while selecting the right number of repetitions improves the likelihood of finding true means through measured variance. The goals of dimensioning are exactly these: 1. eliminate the uncontrolled variables; 2. find the right number of repetitions to minimize the effect of random variables. @kalibera_rigorous_benchmarking
 
@@ -491,7 +491,7 @@ The lineage's shipped COLMAP to MVS-Net converter script is generally copy-paste
 
 ==== Device Compile flags
 
-APD-MVS builds its CUDA kernels using `--maxrregcount=128` and `--use_fast_math` compiler flags, while CUMVS includes neither of them. To understand the effect of each flag on the results, four measurements have been made after the integration: without the flags, with each flag alone, and with both flags being used. The results (in #ref(<tab:apd-device-flags>)) clearly show that using `--use_fast_math` gives significant performance improvements without affecting the quality of the results. On the other hand, the register cap forces no register spilling because no kernel need more than 128 registers (the maximum being 120 in kernel `DepthToWeak`). The only explanation for the faster results while turning on register capping is that NVCC decides on different PTX optimizations while the cap is active. Without further understanding the root-cause for the register capping speedup, the integration will use both flags and will override the CUMVS default behavior here.
+APD-MVS builds its CUDA kernels using `--maxrregcount=128` and `--use_fast_math` compiler flags, while CUMVS includes neither of them. To understand the effect of each flag on the results, four measurements have been made after the integration: without the flags, with each flag alone, and with both flags being used. The results (in #ref(<tab:apd-device-flags>)) clearly show that using `--use_fast_math` gives significant performance improvements without affecting the quality of the results. On the other hand, the register cap forces no register spilling because no kernel need more than 128 registers (the maximum being 120 in kernel `DepthToWeak`). The only explanation for the faster results while turning on register capping is that NVCC decides on different PTX optimizations while the cap is active. The integration accepts to use both flags and will override the CUMVS default behavior without further examining the root-cause for the register capping speedup.
 
 #figure(
   table(
@@ -530,6 +530,16 @@ During PatchMatch propagation, a single image's data structure stores its: colou
 
 === Runtime decomposition, algorithmic cost, and analysis <apd-mvs-analysis>
 
+The work continues by closely examining the performance characteristics of the APD-MVS integration. First it depicts the contributing factors, then examines them carefully to find performance improvement opportunities. It analyzes the stages of the MVS algorithm that take the most time, and focuses on finding the best targets for optimization.
+
+The work will use `pipes` scene from ETH3D @eth3d_dataset which contains only 14 images, providing a way for quick iterations. For confirmations that gains hold at scale, `office` and `playground` will be used. The former to support larger textureless areas, the latter to confirm on scenes with less textureless areas. Finally, all of the scenes will be run to show an overall improvement across all scenes. The optimization attempts focus on improvements that retain the F1-score of the algorithm. F1 spread has been measured in #ref(<sec:benchmark-dimensioning>) as a baseline and the same benchmarking methodology will be used to confirm quality for the non-deterministic runs with confidence interval #ref(<eq-ci>).
+
+
+
+---
+
+The work of _UpdatePixel_ (#ref(<alg:acmm-pixel>)) is dominated by NCC evaluations and it is the main cost of runtime. One update evaluates $(8 + 1 + 5) dot n = 14 n$ of them, and each compares an $11 times 11$ window sampled at every second pixel, that is $6 times 6 = 36$ samples, after warping it into the source image with the homography that the plane induces. An iteration updates every pixel once, so a photometric pass over a $W times H$ image with $n = 20$ and $T_m = 3$ evaluates about $3 dot 14 dot 20 dot W H = 840 W H$ windows, and its initialization another $20 W H$.
+
 #todo[what is the overhead of APD-MVS over ACMM exactly can we create an experiment where we turn off features from APD-MVS and see how much the runtime and the F1 score changes? This would let me give an argument of how much runtime are we paying for each percentage point. Then could use the same metric to show how much we improved for runtime over percentage point.]
 
 1. high-level overview on the timings: detailed timings for all steps in APD-MVS, list kernels with timings. Use the CUMVS integration. Analyse the core contributors to time, provide conclusions on what is consuming the most time and why.
@@ -537,6 +547,9 @@ During PatchMatch propagation, a single image's data structure stores its: colou
 2. what is the theoretical maximum Gflop/s for 5070TI? How are some of our kernels doing on average compared to it?
 
 /*
+Simple ideas:
+- 100-130s cumulative input loading, after "refine init 4" the kernel times are higher then the input loading itself. We could just run another CPU thread that loads for the next iteration preemtively.
+
 Performance notes
 
 FindNearestStrongPoint and GenNeighbours seems to be unnecessary, there must be a better algorithm to search for nearest anchors. Check my analysis on ilka0
@@ -565,13 +578,6 @@ TODO
 - analyse quorum-mvs and see if it made the CUMVS improvements itself, if not, why not and what did it do instead
 - octahedral normals are a likely interesting thing to try
 */
-
-
-The work continues by closely examining the performance characteristics of the APD-MVS integration. First it depicts the contributing factors, then examines them carefully to find performance improvement opportunities. It analyzes the stages of the MVS algorithm that take the most time, and focuses on applying Amdahl's law to find the best targets for optimization.
-
-
-
-The work of _UpdatePixel_ (#ref(<alg:acmm-pixel>)) is dominated by NCC evaluations and it is the main cost of runtime. One update evaluates $(8 + 1 + 5) dot n = 14 n$ of them, and each compares an $11 times 11$ window sampled at every second pixel, that is $6 times 6 = 36$ samples, after warping it into the source image with the homography that the plane induces. An iteration updates every pixel once, so a photometric pass over a $W times H$ image with $n = 20$ and $T_m = 3$ evaluates about $3 dot 14 dot 20 dot W H = 840 W H$ windows, and its initialization another $20 W H$.
 
 /*
 Itt van az algoritmus leirasa es kidolgozasa
