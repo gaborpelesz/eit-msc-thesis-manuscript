@@ -278,7 +278,7 @@ APD-MVS is one of the more recent approaches to help the patch-match window prob
 
 This section starts with an overview of the ACMH/ACMM algorithm that serves as the foundation for APD-MVS. Then in #ref(<apd-mvs-overview>) the most important APD-MVS improvements will be described. These sections are providing the basic information on the algorithms to then understand the analysis of the different parts layed out in #ref(<apd-mvs-analysis>).
 
-=== ACMH/ACMM algorithm overview
+=== ACMM algorithm overview
 
 /*
 ACMM algorithm:
@@ -389,7 +389,39 @@ Thus, ACMH defines a voting scheme where a source image is likely to be drawn if
 
 === APD-MVS <apd-mvs-overview>
 
-APD-MVS is an extension for ACMH @acmh_acmm
+/*
+- reliable/strong and unreliable/weak pixels: APD-MVS classifies each pixel as either of these two, and creates a classification mask for these.
+  - how do we actually define strong vs weak points?
+- APD-MVS has an extra step to handle weak points. In this extra step it alters the sampling such that the sampling is reaching for nearby strong pixels as anchor points.
+  - I approximately remember how we are searching for these anchors. I think we are dividing equally the circle around the pixel into circular sectors, and we are trying to find the closest anchor in each sector?
+  - I don't know what happens when we find these anchor points. Do we somehow interpolate between them, considering that whatever lies between them is plane, essentially implementing some kind of a planar prior? Or do we also consider their normals and we somehow fit a surface between the anchor points?
+    - note: could a monocular prior help in determining this surface? Marigold v2 seems to have good knowledge about how different objects are bending or layed out. (or trying to fit basic geometries line planes or cylinder?)
+*/
+
+
+APD-MVS @apd is an extension for ACMM @acmh_acmm focusing on textureless regions as their main contribution. It inherits the image-level view selection, the image pyramid multiscale scheme, and the photometric and geometric PatchMatch passes. It claims, that the main problem of traditional PatchMatch is the fixed window size where, in case of a textureless region, the cost profile does not have a distinct minimum around the true depth. Therefore, APD-MVS assigns every pixel a _reliability_ state and updates the reliable and unreliable pixels differently. A _reliable_ pixel has a distinct cost minimum at its current depth and is updated by the traditional _UpdatePixel_ function (#ref(<alg:acmm-pixel>)). Initially, the algorithm classifies each pixel as reliable, thus the first iteration of PatchMatch is exactly the same as ACMM. An _unreliable_ pixel uses a _deformable patch_ for matching#footnote[APD-MVS evaluates the ZNCC without the bilateral weights of ACMM, so every sample of a window has the same weight. The restrictive change remains unexplained in the paper or the implementation.], where next to the regular patch window, smaller and sparser windows around nearby reliable pixels are defined. These reliable pixels, called _anchors_, are selected to lie on a common plane surrounding the pixel. This requires three additional components in the algorithm: the reliability evaluation, the adaptive patch deformation that selects the anchors, and a modified update for unreliable pixels.
+
+/* 
+ * Disparity is used instead of depth, as depth would lead to uneven steps in pixel space across the views. They are just approximating the average disparity.
+ */
+*Reliability evaluation.* The state of a pixel $p$ is derived from analysing the cost profile along its viewing ray. Multiple samples around the depth of $p$ are taken in each direction, with steps defined in the average disparity across the reference and the source views. Only the source images from joint view selection result are taken. The matching cost is computed and aggregated for each step from the selected source images using ACMM #ref<eq:acmm-cost>. The cost profile is analysed for local and global mininums. There are multiple heuristics set up to classify the pixels, such as how many valleys the profile has, how close is the estimated depth to the depth with the global minimum, or whether the profile has a distinct minimum that the pixel can reach in a couple iterations. Generally, reliable pixels show evidence for convergence, or the ability to converge in reasonable time. Unreliable pixels are described by several valleys, and no clear convergence.
+
+#todo[maybe reliability figure that shows the cost profile for an unreliable point and a reliable point]
+
+*Adaptive patch deformation* finds the anchor points for unreliable pixels in three stages:
+1. _Nearest reliable pixel._ For every unreliable pixel $q$ it finds the nearest reliable pixel $cal(N)(q)$ by brute-force, scanning a $201 times 201$ window around $q$. In essence, this step builds an acceleration structure for the search in the next stage.
+2. _Spoke search._ This step carries out the actual search for reliable pixels in all directions. It divides the surroundings of $p$ into $phi$ sectors. In each sector, it shoots probing rays in a random direction and tests pixels at different radii. A probe that finds an unreliable pixel returns $cal(N)(q)$ if $q$ lands in the sector otherwise returns $q$ for a reliable anchor.
+3. _RANSAC filtering._ The goal of this step is to filter out anchor points that are from different surfaces, potentially due to occlusion. A RANSAC loop draws three anchor candidates whose image triangle contains $p$ and fits a plane to their 3D points. It counts the other candidates that fit onto this plane with $epsilon$ threshold as inliers, as the rest as outliers. The filtering step removes all candidates whose distance is larger than the tolerance to the winning plane and outputs the three that defined the plane.
+
+
+
+#todo[is I do the previous todo figure, we can make one here that shows how the adaptive patch deformation changes an unreliable pixels cost profile: so show the unreliable cost profile before and after adaptive deformation]
+
+*Modified update for unreliable pixels.* Within an iteration, the reliable pixels are updated first, because the planes of the anchors are the candidates of the unreliable pixels. A second RANSAC loop then refits a plane to the updated 3D points of the anchors of each unreliable pixel. It again draws triples whose triangle contains $p$ and keeps the plane with the smallest summed distance to the remaining anchors. Unlike the fit of the anchor selection, which runs once per pass, this fit is repeated in every iteration, and its result, the _planar prior_ $pi_p$, serves as a hypothesis. Finally, the unreliable pixels are updated in red-black iterations. It differs from #ref(<alg:acmm-pixel>) in five respects: the candidates are the planes of the anchors instead of the eight checkerboard regions; the view selection takes its prior from the views selected by the anchors instead of the four direct neighbors; every hypothesis is scored with the deformable cost; $pi_p$ is tested as an additional hypothesis before the refinement; and the stored cost $c_p$ (#ref(<alg:acmm-pixel>)) is recomputed with the conventional cost at the end. The stored costs of all pixels thus remain conventional costs, which the sampling step of reliable pixels compares within a region. 
+
+
+#todo[algorithm showing the new image pass]
+
 
 === APD-MVS integration into CUMVS
 
@@ -470,6 +502,20 @@ During PatchMatch propagation, a single image's data structure stores its: colou
 
 
 === Runtime decomposition, algorithmic cost, and analysis <apd-mvs-analysis>
+
+#todo[what is the overhead of APD-MVS over ACMM exactly can we create an experiment where we turn off features from APD-MVS and see how much the runtime and the F1 score changes? This would let me give an argument of how much runtime are we paying for each percentage point. Then could use the same metric to show how much we improved for runtime over percentage point.]
+
+/*
+Performance notes
+
+FindNearestStrongPoint and GenNeighbours seems to be unnecessary, there must be a better algorithm to search for nearest anchors. Check my analysis on ilka0
+
+The precomputation itself is brute force. It scans all 201 × 201 = 40,401 pixels around each WEAK pixel, every pass from round 2 on. That is O(weak pixels × 40k) reads. A distance transform (exact EDT or jump flooding) gives the same nearest-reliable map in roughly O(N) or O(N log N). It is a clear example of implementation overhead rather than algorithmic necessity, so it is a natural candidate both for production APD-MVS and for a per-kernel timing breakdown. FindNearestStrongPoint currently runs inside the patchmatch.init phase, so its own cost isn't separated in the store yet.
+
+spoke probes land at scattered positions, so neighbouring threads in a warp read unrelated entries. These loads are uncoalesced. The pointer is const in GenNeighbours, but nothing marks it __restrict__ or reads it through __ldg, so whether the read-only cache is used is left to the compiler. This is cheap compared with the 201 × 201 scan that fills the table, so it's a minor point for production APD-MVS.
+
+
+*/
 
 /*
 obvious inefficient implementation decisions:
