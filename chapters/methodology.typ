@@ -419,8 +419,35 @@ APD-MVS @apd is an extension for ACMM @acmh_acmm focusing on textureless regions
 
 *Modified update for unreliable pixels.* Within an iteration, the reliable pixels are updated first, because the planes of the anchors are the candidates of the unreliable pixels. A second RANSAC loop then refits a plane to the updated 3D points of the anchors of each unreliable pixel. It again draws triples whose triangle contains $p$ and keeps the plane with the smallest summed distance to the remaining anchors. Unlike the fit of the anchor selection, which runs once per pass, this fit is repeated in every iteration, and its result, the _planar prior_ $pi_p$, serves as a hypothesis. Finally, the unreliable pixels are updated in red-black iterations. It differs from #ref(<alg:acmm-pixel>) in five respects: the candidates are the planes of the anchors instead of the eight checkerboard regions; the view selection takes its prior from the views selected by the anchors instead of the four direct neighbors; every hypothesis is scored with the deformable cost; $pi_p$ is tested as an additional hypothesis before the refinement; and the stored cost $c_p$ (#ref(<alg:acmm-pixel>)) is recomputed with the conventional cost at the end. The stored costs of all pixels thus remain conventional costs, which the sampling step of reliable pixels compares within a region. 
 
+#ref(<alg:apd-imagepass>) shows the modified image pass to account for the unreliable pixel propagation. It adds loading of the 
 
-#todo[algorithm showing the new image pass]
+#let _new = box(width: 1.1em, $star$)
+#let _old = box(width: 1.1em)
+#let _in = h(1.5em)
+#algorithm(caption: [APD-MVS _ImagePass_$(r, k, "phase")$: one reference image pass in round $k$ ($star$: no counterpart in #ref(<alg:acmm-imagepass>))])[
+  #algorithmic(
+    (0, [#_old load $I_r$, $S_r$ with their cameras $C$ at scale $s$], emph[input loading]),
+    (0, [#_old load $D_r$ and $N_r$ of the previous pass, upsampled if needed]),
+    (0, [#_new load $V_r$ and $L_r$ likewise;#h(0.6em) $U_r <- {p : L_r (p) = "unreliable"}$, empty if $k = 1$]),
+    (0, [#_old copy the images, cameras and maps to the device], emph[device upload]),
+    (0, [#_new *for each* $q in U_r$ *in parallel do* $cal(N)(q) <-$ nearest reliable pixel], emph[initialization], <alg:apd-nearest>),
+    (0, [#_new *for each* $p in U_r$ *in parallel do*]),
+    (0, [#_new#_in $A_p <-$ SelectAnchors$(p)$;#h(0.6em) *if* none are found *then* remove $p$ from $U_r$], none, <alg:apd-anchors>),
+    (0, [#_old *for each* pixel $p$ *in parallel do*]),
+    (0, [#_old#_in $theta_p <-$ the loaded plane, or a random plane in the first pass of round 1]),
+    (0, [#_old#_in $c_p <-$ initial cost of $theta_p$]),
+    (0, [#_old *for* $t = 1, 2, 3$ *do*], emph[propagation]),
+    (0, [#_old#_in *for each* black, then *each* red $p in.not U_r$ *in parallel do* UpdatePixel$(p, t)$], none, <alg:apd-reliable>),
+    (0, [#_new#_in *for each* $p in U_r$ *in parallel do* $pi_p <-$ FitPlane$(A_p)$], emph[planar prior], <alg:apd-fit>),
+    (0, [#_new#_in *for each* black, then *each* red $p in U_r$ *in parallel do* UpdateUnreliable$(p, t)$], none, <alg:apd-unreliable>),
+    (0, [#_old convert every $theta_p$ to depth and normal; median-filter the depths], emph[finalization], <alg:apd-filter>),
+    (0, [#_new *for each* pixel $p$ *in parallel do* $L_r (p) <-$ EvaluateReliability$(p, eta)$], none, <alg:apd-reliability>),
+    (0, [#_new *for each* pixel $p$ *in parallel do* SearchDepth$(p)$], none, <alg:apd-search>),
+    (0, [#_old copy the planes, states and selected views to the host], emph[readback]),
+    (0, [#_old unpack them into $D_r$, $N_r$, $L_r$ and $V_r$], emph[result unpacking]),
+    (0, [#_old write $D_r$, $N_r$, $L_r$ and $V_r$ to disk], emph[depth map writing]),
+  )
+] <alg:apd-imagepass>
 
 
 === APD-MVS integration into CUMVS
@@ -505,6 +532,10 @@ During PatchMatch propagation, a single image's data structure stores its: colou
 
 #todo[what is the overhead of APD-MVS over ACMM exactly can we create an experiment where we turn off features from APD-MVS and see how much the runtime and the F1 score changes? This would let me give an argument of how much runtime are we paying for each percentage point. Then could use the same metric to show how much we improved for runtime over percentage point.]
 
+1. high-level overview on the timings: detailed timings for all steps in APD-MVS, list kernels with timings. Use the CUMVS integration. Analyse the core contributors to time, provide conclusions on what is consuming the most time and why.
+  - notice that the 20-23% host-I/O is due to APD-MVS writing the depth, the normals, the cost, the views-selection results, and the weak masks
+2. what is the theoretical maximum Gflop/s for 5070TI? How are some of our kernels doing on average compared to it?
+
 /*
 Performance notes
 
@@ -537,6 +568,8 @@ TODO
 
 
 The work continues by closely examining the performance characteristics of the APD-MVS integration. First it depicts the contributing factors, then examines them carefully to find performance improvement opportunities. It analyzes the stages of the MVS algorithm that take the most time, and focuses on applying Amdahl's law to find the best targets for optimization.
+
+
 
 The work of _UpdatePixel_ (#ref(<alg:acmm-pixel>)) is dominated by NCC evaluations and it is the main cost of runtime. One update evaluates $(8 + 1 + 5) dot n = 14 n$ of them, and each compares an $11 times 11$ window sampled at every second pixel, that is $6 times 6 = 36$ samples, after warping it into the source image with the homography that the plane induces. An iteration updates every pixel once, so a photometric pass over a $W times H$ image with $n = 20$ and $T_m = 3$ evaluates about $3 dot 14 dot 20 dot W H = 840 W H$ windows, and its initialization another $20 W H$.
 

@@ -69,6 +69,8 @@ Computing the cost volume is regularly done by plane sweeping @yang2003_realtime
 
 Storing the cost volume is necessary to improve on the winner-takes-all approach. It also requires to define the precision on the depth-range for the optimization. The same problem arises in modern learned MVS approaches @apd, where the cost volume is calculated by a neural network using learned features and regularisation. Even though much progress has been made in order to reduce the memory requirements of these approaches, methods such as @yao2019_rmvsnet @gu2020_casmvsnet can still only compute the depth at a lower resolution or over a low precision depth-range, and has to fine-tune these through costly refinement approaches.
 
+#todo[we can also cite 3d_survey2026 to support the learning-based claims]
+
 /*
 - reference image -> the image being reconstructed
 - source images -> the images where we are trying to find the correspondences

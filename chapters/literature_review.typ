@@ -119,6 +119,8 @@ CUMVS is an open-source, production-ready reimplementation of ACMM @acmh_acmm re
 
 The reimplementation comes with several algorithmic changes. It omits ACMM's joint bilateral upsampling and detail restorer, and replaces the Monte-Carlo pixelwise view selection with soft per-view weights. The homography is approximated, and is linearized around the patch window center to remove a division from the inner loop of the hotpath. They make several other optimizations, such as utilizing shared memory in GPU kernels for the sampling instead of naive texture fetching, and their per-view camera constants are precomputed in constant memory instead of rebuilding them inside the homography function. In their implementation, the depth and normal maps are kept in memory, where other methods tend to write them to disk and re-read them at every image pass.
 
+There are other work that focuses on performance improvements of the algorithms #todo[cite: MVP-Stereo: A Parallel Multi-View Patchmatch Stereo Method with Dilation Matching for Photogrammetric Application], however, these methods doesn't provide an open-source implementation, and they are comparing their speed to the inefficient author implementations of @acmh_acmm that were significantly surpassed by CUMVS without drops in quality.
+
 /*
 describes the lineage and selected methods that the thesis considers. shows and analyzes the algorithmic improvements and what added costs these have. Also analyzes the software source code a bit.
 
