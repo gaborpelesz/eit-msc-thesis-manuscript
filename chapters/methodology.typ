@@ -171,7 +171,7 @@ We have chosen 13 MVS algorithms to evaluate in total with the following conside
 - TSAR-MVS: a different approach than the ACM-family building on Gipuma.
 - CUMVS: a simplification and reimplementation of the ACMH/ACMM released by an independent high-performance company, Fixstars. The implementation focuses on performance and production quality.
 
-The benchmarking analyses predefined phases of the algorithms to gather as much information as possible without significant modifications to the implementation. The algorithm implementations are treated as is, with only essential changes to the implementations as possible. The required changes are mostly related to setup and compilation, or phase timing for the benchmarking. Later sections describe these changes in depth.
+The benchmarking analyses predefined phases of the algorithms to gather as much information as possible without significant modifications to the implementation. The algorithm implementations are treated as is, with only essential changes to them as possible. The required changes are mostly related to setup and compilation, or phase timing for the benchmarking. Later sections describe these changes in depth.
 
 The benchmarking has two target measurements: speed through *mean execution time*, and quality through *F1 score*.
 
@@ -297,14 +297,14 @@ ACMM algorithm:
       - run median filter on resulting depth map
 */
 
-The goal of the ACMM @acmh_acmm algorithm is to estimate one depth map per image. A _reference image_ $I_r$ defines the image being updated, at each step of the algorithm. The image-level view selection first assembles image collections by assigning a set of _source images_ $S_r$ to each $I_r$, with varying number of images included $n = |cal(S)_r| <= 20$, that are observing the same part of the scene. Every pixel $p$ of $I_r$ carries a _plane hypothesis_ $theta_p$, which gives a depth and a surface normal estimate. $theta_p$ defines a slanted image window centered around $p$ called a _patch_, and predicts where the patch appears in each source image $I_j in S_r$. The _matching cost_ $rho_j (theta_p)$ defines a metric to evaluate how good is the mapping of this _patch_ using the plane hypothesis. The cost in ACMM calculates a bilaterally weighted Zero-mean Normalized Cross-Correlation (ZNCC) between two grayscale images and their patches using each pixel's intensity value. The algorithm uses $rho_j (theta_p) = 1 - "zncc"_j (theta_p)$ to define the cost from the correlation, i.e., 0 is a perfect match while 2 is the worst. The weighted mean is taken across $S_r$ to combine all costs.
+The goal of the ACMM @acmh_acmm algorithm is to estimate one depth map per image. A _reference image_ $I_r$ defines the image being updated, at each step of the algorithm. The image-level view selection first assembles image collections by assigning a set of _source images_ $S_r$ to each $I_r$, with varying number of images included $n = |cal(S)_r| <= 20$, that are observing the same part of the scene. Every pixel $p$ of $I_r$ carries a _plane hypothesis_ $theta_p$, which gives a depth and a surface normal estimate. $theta_p$ defines a slanted image window centered around $p$ called a _patch_, and predicts where the patch appears in each source image $I_j in S_r$. The _matching cost_ $rho_j (theta_p)$ defines a metric to evaluate how good is the mapping of this _patch_ using the plane hypothesis. The cost in ACMM calculates a bilaterally weighted Zero-mean Normalized Cross-Correlation (ZNCC) #todo[acronym] between two grayscale images and their patches using each pixel's intensity value. The algorithm uses $rho_j (theta_p) = 1 - "zncc"_j (theta_p)$ to define the cost from the correlation, i.e., 0 is a perfect match while 2 is the worst. The weighted mean is taken across $S_r$ to combine all costs.
 
 $ "Cost"(theta_p, w_p) = (sum_(j in S_r) w_p_j dot rho_j (theta_p)) / (sum_(j in S_r) w_p_j), $ <eq:acmm-cost>
 
 where the view weights $w_p$ are different for each pixel that was set through the pixel-wise joint view selection mechanism @acmh_acmm.
 
 The images of the scene are processed in a multi-scale image pyramid fashion from coarsest to finest. In ACMM's implementation and default parameters, there are 3 _scale_ levels in total. Each scale runs $1 + N_"geom"$ _passes_ over all reference images, where $N_"geom"$ is the number of geometric passes (ACMM default is $N_"geom" = 2$):
-- _photometric_ pass: uses only the bilateral ZNCC cost, starts from random planes or from the an upsampled previous scale result
+- _photometric_ pass: uses only the bilateral ZNCC #todo[acronym] cost, starts from random planes or from the an upsampled previous scale result
 - _geometric_ pass: starts from the result of the previous pass, and defines an additional geometric term in the cost that uses the source images' depth maps to calculate an additional reprojection error.
 
 #ref(<alg:acmm-reconstruction>) shows the high-level overview of the steps and it matches the outline that #ref(<table-timing-measurements>) proposed for time measurements.
@@ -366,7 +366,7 @@ Thus, ACMH defines a voting scheme where a source image is likely to be drawn if
 
 *Propagation* adopts the best candidate if its cost is lower than the $p$'s current plane after weighting them with the view selection prior. Otherwise, it keeps the current estimate as the result of the propagation.
 
-*Refinement* tries alternative variations (five in ACMH) of the propagation result that combine its depth and normal with randomly perturbed and freshly drawn values. This step is crucial, as it slightly alters the current estimate to better fit the local structure, and it introduces new samples for the whole PatchMatch state space that other pixels can utilize.
+*Refinement* tries alternative variations (five in ACMH #todo[acronym]) of the propagation result that combine its depth and normal with randomly perturbed and freshly drawn values. This step is crucial, as it slightly alters the current estimate to better fit the local structure, and it introduces new samples for the whole PatchMatch state space that other pixels can utilize.
 
 
 #algorithm(caption: [UpdatePixel$(p, t)$: update of one pixel])[
@@ -536,7 +536,7 @@ During PatchMatch propagation, a single image's data structure stores its: colou
  * The baseline is: https://github.com/gaborpelesz/production-apd-mvs/commit/cad21462540a71fb5cce8e5fc29793682fc10c11
  */
 
-The work continues by closely examining the performance characteristics of the CUVMS(APD). First it depicts the contributing factors, then examines them carefully to find performance improvement opportunities. It analyzes the stages of the MVS algorithm that take the most time, and focuses on finding the best targets for optimization. The runtime decomposition uses *pipes* scene from ETH3D @eth3d_dataset which contains only 14 images, ideal for quick measurements. *office* and *playground* will be used to confirm that gains hold at scale. The former to support the claim on larger textureless surfaces, the latter to confirm on scenes with more textured objects. Finally, the result will be run across all scenes to show an overall improvement. The optimization attempts to focus on improvements that retain the F1-score of the algorithm. The F1 spread has been measured in #ref(<sec:benchmark-dimensioning>) serves as a baseline and the same benchmarking technique will be used to confirm quality stay around the mean.
+The work continues by closely examining the performance characteristics of the CUVMS(APD). First it depicts the contributing factors, then examines them carefully to find performance improvement opportunities. It analyzes the stages of the MVS algorithm that take the most time, and focuses on finding the best targets for optimization. The runtime decomposition uses *pipes* scene from ETH3D @eth3d_dataset which contains only 14 images, ideal for quick measurements. *office* and *playground* will be used to confirm that gains hold at scale. The former to support the claim on larger textureless surfaces, the latter to confirm on scenes with more textured objects. Finally, the result will be run across all scenes to show an overall improvement. The optimization attempts to focus on improvements that retain the F1-score of the algorithm. The F1 spread has been measured in #ref(<sec:benchmark-dimensioning>) serves as a baseline and the same benchmarking technique will be used to confirm quality stay around the mean. #todo[Here the following "The work" confuses me on which work are you talking about here.]
 
 #ref(<fig-run-breakdown>) shows the decomposition of a run with CUMVS(APD). A significant share is spent on *input loading/initialization* (\~14%), consisting of:
 - Converting unsigned integer images to 32-bit floating point images.
@@ -555,6 +555,8 @@ In total,
 Notice, that the initialization, the propagation, and the finalization kernels run close to 4x the time to their previous scales, confirming that the runtime of the kernels scale linearly in the number of pixels processed. Finally, at the baseline completing a dense 3D reconstruction from a calibrated setup costs close to *80 seconds / image*.
 
 In total, input preprocessing, initialization kernel, propagation, and finalization takes up *88% of the total runtime*. These four stages are the focus of the next sections.
+
+#todo[General comments: This chapter is almost perfect, little-to-non work is needed to make this a final version. Wording style and clarity is there.]
 
 #kernel-breakdown-table
 

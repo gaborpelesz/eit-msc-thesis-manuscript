@@ -48,20 +48,20 @@
 
 = Introduction
 
-3D reconstruction and perception is a foundational problem in computer vision driving multiple industries and problem spaces such as robotics, manufacturing, healthcare, automotive, logistics and warehousing, agriculture, and more recently construction, surveying, and geomatics #todo[fields need citations]. In the recent years, photogrammetry (image-based 3D reconstruction and measurements) has been gaining interest #todo[citation]. Regular colored images contain vast amount of information, are very accessible and cheap, easy to understand by humans.
-- photogrammetry, image-based 3d reconstruction, is very popular and hot topic
+3D reconstruction and perception is a foundational problem in computer vision driving multiple industries and problem spaces such as robotics, manufacturing, healthcare, automotive, logistics and warehousing, agriculture, and more recently construction, surveying, and geomatics #todo[fields need citations]. In the recent years, photogrammetry (image-based 3D reconstruction and measurements) has been gaining interest #todo[citation]. Regular colored images contain vast amount of information, which can be accessible and easy to understand by humans.
+- Photogrammetry, image-based 3d reconstruction, is very popular topic of interest
 
 // keep this one sentence
-- Multi-View Stereo (MVS) produces highly accurate and dense point clouds
+- Multi-View Stereo (MVS) #todo[does typst have an acronym handler package? It would be nice to have a list of acronyms also manually handling them is prone to errors.] produces highly accurate and dense point clouds
 
 // make this more concrete: pixels * views * taps * iterations; cite ETH3D 24 MP images
-- the problem of MVS is the amount of data it has to process
+- The problem of MVS is the amount of data one has to process during an evaluation
 
 // this is the best sentence in the sketch; faster algos directly lead to better quality -> they can use higher resolution / or more sophisticated methods in the optimization
-- this is a problem in highly accurate and/or large-scale 3D reconstruction (with faster algorithms, 3D models could become higher quality because the reconstruction could use higher resolution images or more sophisticated algorithms to improve point accuracy)
+- This is a problem in highly accurate and/or #todo[can't understand and/or here] large-scale 3D reconstruction (with faster algorithms, 3D models could become higher quality because the reconstruction could use higher resolution images or more sophisticated algorithms to improve point accuracy)
 
 // The paper says its 24 MP images “encourage the development of memory and computationally efficient methods which can handle very large datasets.” The benchmark’s own authors expected efficiency to be rewarded.
-- Another important event was that Schöps et al., CVPR 2017 introduced ETH3D dataset which created an easy way to measure algorithmic performance and with it, and with this dataset, dozens of algorithms were released with papers competing with each other on the benchmarks.
+- Another important event was that Schöps et al., CVPR 2017 #todo[what important event was discussed before here?] introduced ETH3D #todo[citation] dataset which created an easy way to measure algorithmic performance. Based on the evaluations on the dataset, dozens of algorithms were released with papers competing with each other in various benchmarks.
 
 /*
 needs evidence in literature review but this is a strong point
@@ -76,10 +76,10 @@ Gipuma said the same of KITTI and Middlebury in 2015. Middlebury v3 and KITTI sh
 - The count: "~170 of 630 rows" is an agent's approximate count. Under your rule that manuscript numbers come from scripts, add a small parser that reads the archived HTML and outputs the counts and the lineage methods' runtimes. The ledger claim then cites that query.
 - Citation: cite the ETH3D paper for what the benchmark intends, and add a @misc entry for the leaderboard with url, urldate = 2026-10-30 and the archive URL in note. The follow-up file has the BibTeX. In the text, put the date on the observation: "As of 30 October 2026, the ETH3D leaderboard lists 10⁷ s for ...".
 */
-- The benchmarks doesn't measure and score algorithmic or implementation efficiency, ACM-family was built on Gipuma, then the contenders started to tweaking the original ACM algorithms further and further with introducing more and more constraints into the algorithm such as multiple-scales (adding more iterations), geometric consistency (adding another geometric consistency propagation after the photometric consistency), planar priors (stricter loss function), confidence sweeps (new postprocessing), DL priors (additional deep learning pre-processing), leading to higher quality in the benchmarks but also making them infeasible in production-grade large-scale photogrammetry problems due to increased runtime. Today's top 10 ETH3D are all PatchMatch hybrids led by DVP-MVS++ at 90.23 2cm f1 score.
+- The benchmarks don't measure and score algorithmic or implementation efficiency, ACM-family was built on Gipuma #todo[what is ACM-family?], then the contenders started to tweaking the original ACM algorithms further and further with introducing more and more constraints into the algorithm such as multiple-scales (adding more iterations), geometric consistency (adding another geometric consistency propagation after the photometric consistency), planar priors (stricter loss function), confidence sweeps (new postprocessing), DL priors (additional deep learning #todo[acronym?] pre-processing), leading to higher quality in the benchmarks but also making them infeasible in production-grade large-scale photogrammetry problems due to increased runtime. #todo[super long sentence, break it down.] Today's top 10 ETH3D are all PatchMatch hybrids led by DVP-MVS++ #todo[citation] at 90.23 2cm f1 score.
 
 
-- The thesis claims that many of the algorithms slowness comes from implementation inefficiency inherited from the lineage of the developing algorithm family.
+- The thesis claims that many of the algorithms speed comes from implementation inefficiency inherited from the lineage of the developing algorithm family.
 
 ----------------------------------------
 
@@ -94,11 +94,13 @@ To what extent is the cost growth across successive patch-match MVS algorithms a
 Which implementation-level factors (memory access patterns, GPU occupancy, redundant computation, data layout, host-device transfers) contribute most to the performance gap in existing reference implementations?
 
 ==== RQ3
-Can a systematically engineered, production-grade reimplementation of a recent state-of-the-art method recover a substantial fraction of the runtime and memory cost while preserving its benchmark accuracy?
+Can a systematically engineered, production-grade reimplementation of a recent state-of-the-art #todo[acronym] method recover a substantial fraction of the runtime and memory cost while preserving its benchmark accuracy?
 
 ==== RQ4
 What software engineering and performance optimization practices should the MVS research community adopt to prevent the continued accumulation of avoidable overhead in future methods?
 //  this is answerable from the paper-versus-release findings plus the literature above. Its tone is brief item 15.
+
+#todo[General comments: The message is not clear enough during the introduction. Do you think it is necessary to have F1 scores in the introduction without declaring what an F1 score is? This chapter needs "generalization", talking about the broader problems without pulling DVP-MVS++ out of the hat. Please use https://typst.app/universe/package/abbr/ managing acronyms will be terrible if you don't apply some type of technique to do it for you.]
 
 #include "chapters/background.typ"
 #include "chapters/literature_review.typ"
