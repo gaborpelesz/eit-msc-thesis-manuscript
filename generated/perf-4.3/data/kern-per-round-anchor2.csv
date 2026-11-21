@@ -1,0 +1,7 @@
+run,kernel,round0_s,round1_s,round2_s,round3_s,total_s
+anchor2-k3,InitRandomStates,0.106,0.447,1.920,8.221,10.694
+anchor2-k3,FindNearestStrongPoint,0.000,4.246,17.634,72.423,94.303
+anchor2-k3,GenNeighbours,0.000,0.755,5.419,30.722,36.897
+anchor2-k12,InitRandomStates,0.106,0.447,1.920,8.221,10.694
+anchor2-k12,FindNearestStrongPoint,0.000,4.245,17.642,72.511,94.398
+anchor2-k12,GenNeighbours,0.000,0.376,2.509,12.057,14.943

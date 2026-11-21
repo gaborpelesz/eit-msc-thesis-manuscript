@@ -1,0 +1,4 @@
+seed,cand_run,cand_md5,cand_span_s,cand_f1_1,cand_f1_2,cand_f1_5,ref_run,ref_md5,ref_span_s,ref_f1_2
+1,s43-prop-comb-plain-s1,14160101,620.80,0.820348,0.875422,0.923896,s43-comb-native-s1,c8d3718c,773.50,0.875238
+2,s43-prop-comb-plain-s2,0ea50888,619.80,0.819532,0.875389,0.921726,s43-comb-native-s2,4de2dfe6,772.60,0.877133
+3,s43-prop-comb-plain-s3,036e15e0,619.70,0.820583,0.876366,0.922635,s43-comb-native-s3,f1d5f598,772.70,0.875796

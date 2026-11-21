@@ -1,0 +1,9 @@
+arm,seed,run,span_s
+base2,1,s43-base2-native-s1,1109.2034
+base2,1,s43-base2-native-s1-rep2,1105.0079
+base2,1,s43-anchor-base2-plain-s1,1094.4159
+base2,2,s43-base2-native-s2,1106.4914
+base2,3,s43-base2-native-s3,1104.8426
+anchor,1,s43-anchor-irs-plain-s1,952.5838
+anchor,2,s43-anchor-irs-plain-s2,946.2714
+anchor,3,s43-anchor-irs-plain-s3,942.1546

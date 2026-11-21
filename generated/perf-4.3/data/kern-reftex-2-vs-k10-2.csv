@@ -1,0 +1,13 @@
+group,base_s,cand_s,delta_s,launch_spread_lo,launch_spread_hi,n_launches,base_run,cand_run
+BlackPixelUpdateWeak,241.4241,239.4685,-1.9556,-2.1218,-1.7895,672,s43-prop-k10-2-nsys-s1,s43-prop-reftex-2-nsys-s1
+RedPixelUpdateWeak,241.2231,239.2574,-1.9657,-2.1327,-1.7987,672,s43-prop-k10-2-nsys-s1,s43-prop-reftex-2-nsys-s1
+BlackPixelUpdateStrong,15.5525,15.1635,-0.3890,-0.4275,-0.3505,672,s43-prop-k10-2-nsys-s1,s43-prop-reftex-2-nsys-s1
+RedPixelUpdateStrong,15.5741,15.1874,-0.3866,-0.4246,-0.3487,672,s43-prop-k10-2-nsys-s1,s43-prop-reftex-2-nsys-s1
+weak (Black+Red),482.6472,478.7259,-3.9214,-4.2538,-3.5889,672,s43-prop-k10-2-nsys-s1,s43-prop-reftex-2-nsys-s1
+strong (Black+Red),31.1266,30.3509,-0.7757,-0.8520,-0.6993,672,s43-prop-k10-2-nsys-s1,s43-prop-reftex-2-nsys-s1
+RANSACToGetFitPlane,3.6160,3.6160,-0.0001,-0.0014,0.0013,672,s43-prop-k10-2-nsys-s1,s43-prop-reftex-2-nsys-s1
+DepthToWeak,49.4307,42.8914,-6.5393,-7.6549,-5.4237,224,s43-prop-k10-2-nsys-s1,s43-prop-reftex-2-nsys-s1
+LocalRefine,9.9350,8.7145,-1.2205,-1.4330,-1.0079,224,s43-prop-k10-2-nsys-s1,s43-prop-reftex-2-nsys-s1
+GenNeighbours,64.4975,64.5173,0.0199,0.0034,0.0363,224,s43-prop-k10-2-nsys-s1,s43-prop-reftex-2-nsys-s1
+propagation,517.3898,512.6928,-4.6971,-5.0999,-4.2943,672,s43-prop-k10-2-nsys-s1,s43-prop-reftex-2-nsys-s1
+run (all kernels),748.1385,735.7018,-12.4367,nan,nan,0,s43-prop-k10-2-nsys-s1,s43-prop-reftex-2-nsys-s1

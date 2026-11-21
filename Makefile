@@ -21,7 +21,15 @@ BASELINE_OUT = $(BASELINE)/derived/$(BASELINE_RUN)
 STAGE_JSON = $(BASELINE_OUT)/stage-timings.json
 PASS_JSON = $(BASELINE_OUT)/pass-timeline.json
 KERNEL_JSON = $(BASELINE_OUT)/kernel-breakdown.json
-DATA = $(STAGE_JSON) $(PASS_JSON) $(KERNEL_JSON)
+
+# Data files of section 4.3 (performance optimizations): the figures chapters/figures/perf-*.typ
+# and the numbers of the 4.3 text. One script writes all of them from the CSV snapshots in
+# generated/perf-4.3/data and from the baseline run files (python3, standard library only); they
+# are not committed. numbers-method.json stands for the set.
+PERF43 = generated/perf-4.3
+PERF43_JSON = $(PERF43)/derived/numbers-method.json
+
+DATA = $(STAGE_JSON) $(PASS_JSON) $(KERNEL_JSON) $(PERF43_JSON)
 
 .PHONY: build watch clean figures
 
@@ -36,6 +44,9 @@ $(PASS_JSON): $(BASELINE)/scripts/pass_timeline.py $(BASELINE)/scripts/run_files
 
 $(KERNEL_JSON): $(BASELINE)/scripts/kernel_breakdown.py $(BASELINE)/scripts/run_files.py $(BASELINE_RAW)/launches.tsv $(BASELINE_RAW)/kernel-totals-base.csv $(BASELINE_RAW)/phases.txt $(STAGE_JSON)
 	python3 $< --launches $(BASELINE_RAW)/launches.tsv --stages $(STAGE_JSON) --phases $(BASELINE_RAW)/phases.txt --kernel-table $(BASELINE_RAW)/kernel-totals-base.csv --run $(BASELINE_RUN) --out $@
+
+$(PERF43_JSON): $(PERF43)/scripts/perf43_json.py $(wildcard $(PERF43)/data/*.csv) $(wildcard $(PERF43)/data/*.json) $(wildcard $(PERF43)/data/*.md) $(BASELINE_RAW)/phases.txt $(BASELINE_RAW)/kernel-totals-base.csv
+	python3 -B $< --data $(PERF43)/data --baseline-run $(BASELINE_RAW) --out $(PERF43)/derived
 
 generated/figures/dimensioning_run_statistics.png: generated/dimensioning/scripts/dimensioning_run_statistics.py generated/dimensioning/data/runs-dev2.csv
 	uv run $<

@@ -5,6 +5,7 @@ build/
 generated/results-*
 generated/figures/
 generated/baseline-run/derived/
+generated/perf-4.3/derived/
 
 # misc
 .DS_Store

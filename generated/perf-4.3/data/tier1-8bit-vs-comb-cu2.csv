@@ -1,0 +1,6 @@
+seed,cand_run,cand_md5,cand_span_s,cand_f1_1,cand_f1_2,cand_f1_5,ref_run,ref_md5,ref_span_s,ref_f1_2
+1,s43-prop-8bit-plain-s1,ed27f065,541.50,0.818741,0.875865,0.922741,s43-prop-comb-cu2-plain-s1,e5fa24d4,615.00,0.875308
+2,s43-prop-8bit-plain-s2,aba036db,538.70,0.819175,0.876376,0.923369,s43-prop-comb-cu2-plain-s2,1dd9ed41,615.40,0.875899
+3,s43-prop-8bit-plain-s3,581b435c,538.80,0.820769,0.876571,0.922532,s43-prop-comb-cu2-plain-s3,f3170436,615.20,0.876594
+4,s43-prop-8bit-plain-s4,4a2c4457,538.50,0.822436,0.877509,0.923744,s43-prop-comb-cu2-plain-s4,7dc9623c,614.60,0.878108
+5,s43-prop-8bit-plain-s5,970428b3,541.90,0.820298,0.876583,0.922488,s43-prop-comb-cu2-plain-s5,207a8914,614.20,0.876591

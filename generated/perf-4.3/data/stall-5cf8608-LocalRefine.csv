@@ -1,0 +1,10 @@
+kernel,region,stall_pct,inst_pct,l2_sect_global,l2_sect_local
+LocalRefine,"window loop (NccWindowSums: taps, fetches, sums)",50.89,38.72,0,0
+LocalRefine,geometric cost (ComputeGeomConsistencyCost and its projections),16.61,13.06,9.573e+07,0
+LocalRefine,"tap projection (ComputeCorrespondingPoint, per tap and the projection test)",12.47,27.41,0,0
+LocalRefine,LocalRefine body,10.05,4.18,1.523e+09,9.117e+06
+LocalRefine,NCC set-up and finish (ComputeBilateralNCCOld outside the window),5.81,4.93,2.393e+08,0
+LocalRefine,homography (ComputeHomography),2.97,10.69,0,0
+LocalRefine,"other (math library, headers)",1.05,0.79,0,0
+LocalRefine,plane distance (GetDistance2Origin),0.13,0.21,4.295e+07,0
+LocalRefine,other APD.cu,0.03,0.01,0,0

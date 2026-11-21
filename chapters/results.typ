@@ -15,6 +15,10 @@
 
 == Benchmarking
 
+== CUMVS(APD)
+
+ Notice, that there are many more micro-optimizations that was not implemented, such as parallel filling of the plane buffer. The goal of the thesis is to remain focused on times that matter, and provide minimal changes to achieve significant results on the overall run time. The missed optimization opportunities show that there is still room for improvements.
+
 // put the full benchmark result tables in the appendix
 
 /*

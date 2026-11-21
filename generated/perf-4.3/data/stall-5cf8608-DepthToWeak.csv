@@ -1,0 +1,13 @@
+kernel,region,stall_pct,inst_pct,l2_sect_global,l2_sect_local
+DepthToWeak,"window loop (NccWindowSums: taps, fetches, sums)",51.62,39.17,0,0
+DepthToWeak,geometric cost (ComputeGeomConsistencyCost and its projections),16.59,13.17,4.858e+08,0
+DepthToWeak,"tap projection (ComputeCorrespondingPoint, per tap and the projection test)",10.78,26.53,0,0
+DepthToWeak,"sweep control (loops, view test, depth-range test, clamp)",5.58,3.11,6.762e+08,3.801e+08
+DepthToWeak,NCC set-up and finish (ComputeBilateralNCCOld outside the window),5.40,4.87,1.213e+09,0
+DepthToWeak,view-weight load and weighted sum (APD.cu:2309),4.39,0.84,6.468e+09,0
+DepthToWeak,homography (ComputeHomography),2.78,10.80,0,0
+DepthToWeak,"valley analysis (peaks, var, labels)",1.32,0.43,6.06e+06,3.416e+08
+DepthToWeak,"other (math library, headers)",1.07,0.80,0,0
+DepthToWeak,"prologue (plane, baseline, weight sum)",0.28,0.09,1.613e+08,9.721e+06
+DepthToWeak,plane distance (GetDistance2Origin),0.21,0.19,2.374e+08,1.9e+08
+DepthToWeak,other APD.cu,0.00,0.00,0,0

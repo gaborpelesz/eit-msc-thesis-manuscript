@@ -2,6 +2,7 @@
 #import "figures/acmm-sampling.typ": *
 #import "figures/kernel-breakdown.typ": kernel-breakdown-table
 #import "figures/run-breakdown.typ": run-breakdown-figure
+#import "figures/perf-input-regions.typ": perf-input-regions-figure
 
 // booktabs-style rules: top, below header, bottom; no vertical lines
 #let _rule(w) = table.hline(stroke: w)
@@ -560,7 +561,46 @@ In total, input preprocessing, initialization kernel, propagation, and finalizat
 
 == CUMVS(APD) performance optimizations
 
-=== Hiding the input loading
+This section describes the changes made to the original APD-MVS implementation to showcase some performance improvements that are simple yet effective. The work focuses on all four main contributors: the input loading, the anchor search, the propagation, and the finalization steps. As a result, the changes improvements together achieve 2x over the original implementation with zero or negligible effect on the quality.
+
+Note, that the analysis of the baseline and the improvements were running on a development machine with RTX 5070 Ti (16GB), and an AMD Ryzen 9 5900XT, both with unlocked clocks. However, final benchmarking results will be measured on the same benchmarking configuration as described in #ref(<bench-system>). All development runs used ETH3D _pipes_ at native resolution but the effects were verified on _office_ during evaluations. For evaluations the same bench timer measurements were used as in #ref(<apd-mvs-analysis>). For determinism, the seeds were controlled where possible instead of taking the GPU clock (#ref(<bench-system>)). To control changes that might alter the quality, they are classified into three exactness classes: 1. identical (*E0*); 2. identical up to floating-point rounding (*E1*), 3. results change (*E2*).
+
+=== Hiding the input loading and data transfers <sec:perf-input>
+
+The input loading runs on the host while the GPU is idle and it is responsible for preparing the data for one reference image pass. This section removes most of the time spent on input loading by introducing four E0 changes.
+
+*Breakdown.* To see where the time goes, six region timers were placed inside the stage, each recording the minor page faults of the process at its boundaries. The timed run of the fixed base measured a total of 187.7s going to operations that are related to image data and their input/output. #ref(<fig-perf-input-regions>) shows the detailed breakdown. As a result, the whole run goes from 1106.1s to 926s, a *16%* improvements.
+
+#perf-input-regions-figure
+
+==== Converting RGB images once, resizing once per scale
+
+The performance improvement attempt caches the images in the scene object that all image passes share instead of reloading at every iteration. Therefore, image conversion and resizing only happen at the first image pass of each scale. Sharing image data is safe because it is only read to be uploaded to the device. The cache costs about 1.44GB of host memory for the 14 full-resolution images of _pipes_, plus at most 0.36GB for one round's resized images. As expected from this trivial change, the results are significant. The time spent converting went from 71.3s to 0.7s while the per image pass page faults from 198,000 to 16,000. Resizing went from 17s to 0.1s. Inside the passes of the timed runs the region attributed to host work fell from 187.7s to 92.6s. The improvement is [+34, -12] lines changed in the source code. // commit 57c6261
+
+==== More buffers reused
+
+Following the same logic as the previous section, each native resolution image pass is also asking for about 2.4GB of new host memory for other buffer data that could be utilized again. The plane buffer, the index map of the unreliable pixel anchors, the selected views, and copies of the depth and normal maps of the reference and of all source views. The second performance improvement attempt has the following changes:
+1. The plane array and the index maps are kept in the scene object and reallocated only when the size changes at each scale iteration.
+2. The host-side depth maps, normal maps, and selected view buffers are read only during the image pass thus the changes avoid copy.
+3. The plane fill loop order is swapped so it walks the rows and columns in memory order.
+
+In the timed runs, the plane hypotheses decreased from 44.2s to 11.5s. The improvement is [+41,-21] lines changed in the source code. // 8bd5505
+
+==== Upscaling in parallel 
+
+All of the upscaling uses a shared templated function which is called multiple times such as for every depth map on initialization. A small improvement on top of it which makes the rescaling loop parallel improves the overall contribution from 6.1s to 0.7s. The improvement is only [+18,-10] lines changed in the source code.
+
+=== Host-device data transfers
+
+Data transfers around the kernels are the remaining largest contributors in this region. In the baseline implementation every image pass iteration allocates and uploads data to the device that is potentially already there, doing unnecessary work on the order of around 2.9GB host-device data movement per iteration. Furthermore, the plane hypothesis results were unpacked sequentially into the depth and normal maps on the host-side.
+
+This performance improvement attempt has the following changes:
+1. The same scale iteration images are kept on device instead of reallocating and copying again.
+2. The depth maps are kept on device until they change.
+3. The host-side plane hypothesis buffer is page-locked so that Direct Memory Access (DMA) between host and device is fully utilized.
+4. The host-side plane hypothesis unpacking loop is parallelized.
+
+These improvements cost only [+130,-22] lines of mostly boilerplate code while reducing the host-device data related run time from 35.8s to 7.0s. The page-locked buffer allocation is more expensive (around +0.5s), however, the overall improvements are still significant. // 816fae8
 
 === Efficient anchor search
 

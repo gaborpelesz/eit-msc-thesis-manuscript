@@ -1,0 +1,6 @@
+group,base_s,cand_s,delta_s,launch_spread_lo,launch_spread_hi,n_launches,base_run,cand_run
+FindNearestStrongPoint,0.5648,0.5647,-0.0001,-0.0002,0.0001,224,/home/gabor/thesis-data/bench/diag/production-apd-mvs/s43-anchor-gnl-nsys-s1,/home/gabor/thesis-data/bench/diag/production-apd-mvs/s43-anchor-irs-nsys-s1
+GenNeighbours,12.4100,12.3884,-0.0215,-0.0270,-0.0160,224,/home/gabor/thesis-data/bench/diag/production-apd-mvs/s43-anchor-gnl-nsys-s1,/home/gabor/thesis-data/bench/diag/production-apd-mvs/s43-anchor-irs-nsys-s1
+InitRandomStates,10.6949,3.6370,-7.0579,-8.2155,-5.9003,224,/home/gabor/thesis-data/bench/diag/production-apd-mvs/s43-anchor-gnl-nsys-s1,/home/gabor/thesis-data/bench/diag/production-apd-mvs/s43-anchor-irs-nsys-s1
+anchor,23.6696,16.5901,-7.0795,-8.2417,-5.9174,224,/home/gabor/thesis-data/bench/diag/production-apd-mvs/s43-anchor-gnl-nsys-s1,/home/gabor/thesis-data/bench/diag/production-apd-mvs/s43-anchor-irs-nsys-s1
+run (all kernels),674.4787,667.2969,-7.1818,nan,nan,0,/home/gabor/thesis-data/bench/diag/production-apd-mvs/s43-anchor-gnl-nsys-s1,/home/gabor/thesis-data/bench/diag/production-apd-mvs/s43-anchor-irs-nsys-s1

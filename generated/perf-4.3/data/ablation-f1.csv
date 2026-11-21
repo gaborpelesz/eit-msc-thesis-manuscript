@@ -1,0 +1,19 @@
+row,vs,tol,n,dF1,lo,hi,tier1_pm0.003,tier2_lo_ge_-0.002,per_seed,sources(row/prev)
+K10,IRS,1cm,5,+0.0005,-0.0008,+0.0019,pass,pass,+0.0018 +0.0003 +0.0004 +0.0012 -0.0011,s1:measured/measured s2:measured/measured s3:measured/measured s4:measured/bridged:base2 s5:measured/bridged:base2
+K10,IRS,2cm,5,+0.0006,-0.0007,+0.0018,pass,pass,+0.0012 -0.0001 +0.0005 +0.0019 -0.0007,s1:measured/measured s2:measured/measured s3:measured/measured s4:measured/bridged:base2 s5:measured/bridged:base2
+K10,IRS,5cm,5,+0.0011,+0.0001,+0.0022,pass,pass,+0.0016 +0.0007 +0.0011 +0.0022 +0.0001,s1:measured/measured s2:measured/measured s3:measured/measured s4:measured/bridged:base2 s5:measured/bridged:base2
+K2,reftex,1cm,5,+0.0001,-0.0009,+0.0010,pass,pass,+0.0003 -0.0003 +0.0007 -0.0012 +0.0007,s1:measured/measured s2:measured/measured s3:measured/measured s4:measured/bridged:K10 s5:measured/bridged:K10
+K2,reftex,2cm,5,-0.0007,-0.0016,+0.0002,pass,pass,-0.0010 -0.0017 +0.0001 -0.0010 +0.0000,s1:measured/measured s2:measured/measured s3:measured/measured s4:measured/bridged:K10 s5:measured/bridged:K10
+K2,reftex,5cm,5,-0.0008,-0.0018,+0.0002,pass,pass,+0.0002 -0.0018 -0.0003 -0.0010 -0.0012,s1:measured/measured s2:measured/measured s3:measured/measured s4:measured/bridged:K10 s5:measured/bridged:K10
+CU-2,K7-lite,1cm,5,-0.0002,-0.0016,+0.0011,pass,pass,-0.0016 +0.0004 -0.0006 +0.0012 -0.0006,s1:measured/measured s2:measured/measured s3:measured/measured s4:measured/measured s5:measured/measured
+CU-2,K7-lite,2cm,5,+0.0002,-0.0005,+0.0009,pass,pass,-0.0001 +0.0005 +0.0002 +0.0010 -0.0004,s1:measured/measured s2:measured/measured s3:measured/measured s4:measured/measured s5:measured/measured
+CU-2,K7-lite,5cm,5,-0.0002,-0.0017,+0.0013,pass,pass,-0.0022 +0.0007 +0.0001 +0.0006 -0.0003,s1:measured/measured s2:measured/measured s3:measured/measured s4:measured/measured s5:measured/measured
+8-bit,CU-2,1cm,5,+0.0005,-0.0006,+0.0016,pass,pass,+0.0000 -0.0007 +0.0008 +0.0015 +0.0009,s1:measured/measured s2:measured/measured s3:measured/measured s4:measured/measured s5:measured/measured
+8-bit,CU-2,2cm,5,+0.0001,-0.0005,+0.0007,pass,pass,+0.0006 +0.0005 -0.0000 -0.0006 -0.0000,s1:measured/measured s2:measured/measured s3:measured/measured s4:measured/measured s5:measured/measured
+8-bit,CU-2,5cm,5,+0.0002,-0.0007,+0.0011,pass,pass,+0.0010 +0.0010 -0.0002 -0.0005 -0.0002,s1:measured/measured s2:measured/measured s3:measured/measured s4:measured/measured s5:measured/measured
+C2,8-bit,1cm,5,+0.0000,-0.0002,+0.0003,pass,pass,+0.0001 -0.0002 +0.0001 +0.0002 +0.0000,s1:measured/measured s2:measured/measured s3:measured/measured s4:measured/measured s5:measured/measured
+C2,8-bit,2cm,5,-0.0000,-0.0002,+0.0002,pass,pass,-0.0001 -0.0002 +0.0001 +0.0001 +0.0000,s1:measured/measured s2:measured/measured s3:measured/measured s4:measured/measured s5:measured/measured
+C2,8-bit,5cm,5,-0.0001,-0.0003,+0.0002,pass,pass,-0.0001 -0.0003 +0.0002 -0.0000 +0.0000,s1:measured/measured s2:measured/measured s3:measured/measured s4:measured/measured s5:measured/measured
+K13,C1,1cm,5,-0.0000,-0.0004,+0.0003,pass,pass,-0.0000 +0.0003 -0.0000 +0.0000 -0.0005,s1:measured/measured s2:measured/measured s3:measured/measured s4:bridged:stack/bridged:C2 s5:bridged:stack/bridged:C2
+K13,C1,2cm,5,+0.0000,-0.0002,+0.0003,pass,pass,-0.0000 +0.0003 -0.0000 +0.0000 -0.0002,s1:measured/measured s2:measured/measured s3:measured/measured s4:bridged:stack/bridged:C2 s5:bridged:stack/bridged:C2
+K13,C1,5cm,5,+0.0000,-0.0001,+0.0002,pass,pass,-0.0000 +0.0002 -0.0000 +0.0000 -0.0001,s1:measured/measured s2:measured/measured s3:measured/measured s4:bridged:stack/bridged:C2 s5:bridged:stack/bridged:C2

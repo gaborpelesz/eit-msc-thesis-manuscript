@@ -1,0 +1,4 @@
+seed,cand_run,cand_md5,cand_span_s,cand_f1_1,cand_f1_2,cand_f1_5,ref_run,ref_md5,ref_span_s,ref_f1_2
+1,s43-prop-k7lite-plain-s1,14160101,944.70,0.820348,0.875422,0.923896,s43-prop-k11-plain-s1,14160101,956.60,0.875422
+2,s43-prop-k7lite-plain-s2,0ea50888,944.60,0.819532,0.875389,0.921726,s43-prop-k11-plain-s2,0ea50888,961.50,0.875389
+3,s43-prop-k7lite-plain-s3,036e15e0,948.50,0.820583,0.876366,0.922635,s43-prop-k11-plain-s3,036e15e0,960.90,0.876366
