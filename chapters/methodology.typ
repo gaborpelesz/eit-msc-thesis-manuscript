@@ -579,7 +579,7 @@ The input loading runs on the host while the GPU is idle and it is responsible f
 
 *Breakdown.* To see where the time goes, six region timers were placed inside the stage, each recording the minor page faults of the process at its boundaries. The timed run of the fixed base measured a total of 187.7s going to operations that are related to image data and their input/output. #ref(<fig-perf-input-regions>) shows the detailed breakdown. As a result, the whole run goes from 1106.1s to 926s, a *16%* improvements.
 
-#perf-input-regions-figure
+#place(auto, float: true, clearance: 22pt, perf-input-regions-figure)
 
 ==== Converting RGB images once, resizing once per scale
 
@@ -614,7 +614,7 @@ These improvements cost only [+130,-22] lines of mostly boilerplate code while r
 
 The core mechanism of APD-MVS is giving reliable anchors points for unreliable pixels on textureless areas. Searching for these anchors is the first step, and it is done by three kernels: *InitRandomStates* (10.7 s, 6%) gives every pixel its unique random generator, *FindNearestStrongPoint* (94.3 s, 55%) stores the nearest reliable pixel inside a $201 times 201$ window for each unreliable pixel, *GenNeighbours* (64.8 s, 38%) then walks up to 32 sectors around the pixel to find reliable pixels (#ref(<apd-mvs-overview>)). This section removes 90% of this part's runtime in five E0 class changes (see #ref(<fig-perf-anchor-kernels>)).
 
-#perf-anchor-kernels-figure
+#place(auto, float: true, clearance: 22pt, perf-anchor-kernels-figure)
 
 ==== Anchor selection: probes, random state and candidate sort // 6ff0e7e +21,-2; 078d9f8 +7,-1; 6099c88 +48,-7
 
@@ -629,7 +629,7 @@ The core mechanism of APD-MVS is giving reliable anchors points for unreliable p
 
 `GenNeighbours` selects the anchors of the unreliable pixels with the spoke search of #ref(<apd-mvs-overview>). Most of its time goes into work that has no effect on its result: it repeats probes whose outcome it already knows, it moves the state of a random generator through memory at every draw, and it sorts all of its candidates to keep only a few. Three small changes remove this work and take #pct(1 - _an.gnl.select_s / _an.base.select_s, 0) off the kernel.
 
-#perf-anchor-spokes-figure
+#place(auto, float: true, clearance: 22pt, perf-anchor-spokes-figure)
 
 For an unreliable pixel $p$, the kernel divides the surroundings into sectors and looks for one reliable pixel in each of them (#ref(<fig-perf-anchor-spokes>)a). In every sector it walks outward from $p$ along the middle of the sector, the _spoke_, in growing _radius steps_, and at each step it probes the pixel that the spoke reaches. If the probed pixel, or the nearest reliable pixel stored for it, is a reliable pixel inside the sector, it is accepted as the anchor candidate of the sector and the walk ends. Otherwise the step is rejected and the walk continues at the next radius. A probe exactly on the spoke can miss a suitable pixel just beside it, so every radius step has up to four _tries_, and each try turns the spoke by a small random _jitter_ before it probes (#ref(<fig-perf-anchor-spokes>)b). // src: APD.cu GenNeighbours at 6ff0e7e^ (:1819-1862); .dev/perf/profiles/static-kernels.md §3
 
