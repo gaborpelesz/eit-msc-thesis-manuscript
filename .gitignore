@@ -6,6 +6,7 @@ generated/results-*
 generated/figures/
 generated/baseline-run/derived/
 generated/perf-4.3/derived/
+generated/bench-5.2/derived/
 
 # misc
 .DS_Store

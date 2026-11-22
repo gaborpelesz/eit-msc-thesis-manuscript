@@ -89,7 +89,7 @@ This chapter describes the PatchMatch lineage of MVS algorithms that followed Gi
 */
 
 
-== Multi-Hypothesis Joint View Selection (ACMH)
+== Multi-Hypothesis Joint View Selection (ACMH) <lit:acmh>
 
 Adaptive Checkerboard Multi-Hypothesis Joint View Selection (ACMH) inherits checkerboard from Gipuma and replaces the fixed sampling with adaptive sampling. It increases the sampled neighborhood by introducing new sampling directions. To avoid significantly increasing the number of candidates it changes the sampling positions for each pixel at every iteration, according to the current costs. A hypothesis from a reliable, well-textured pixel can then spread further and faster. This matters most in low-texture regions, where the nearest neighbours often carry poor hypotheses. @acmh_acmm
 

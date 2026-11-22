@@ -34,8 +34,11 @@ jobs:
           cache-dependency-glob: generated/**/scripts/*.py
 
       # Figures and the JSON files the chapters read are not committed: they are generated here
-      # from the data and scripts under generated/ (uv for the plots; the runner's python3,
-      # standard library only, for generated/baseline-run/derived/).
+      # from the data and scripts under generated/. The runner's python3 (standard library only)
+      # writes generated/baseline-run/derived/ and generated/perf-4.3/derived/; uv runs the
+      # scripts that need packages (the dimensioning plot, and the numbers and figures of the
+      # benchmark results in generated/bench-5.2/derived/) and installs the versions pinned in
+      # the header of each script.
       - name: Generate figures and figure data
         run: make figures
 

@@ -124,6 +124,7 @@ should answer the RQs directly, say what the work can't claim and list of future
 // Appendices (optional)
 #show: appendix
 #include "chapters/appendix_ablation.typ"
+#include "chapters/appendix_benchmark.typ"
 
 // Bibliography (mandatory)
 #bibliography("thesis.bib")

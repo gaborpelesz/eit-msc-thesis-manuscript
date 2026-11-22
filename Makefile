@@ -29,7 +29,15 @@ KERNEL_JSON = $(BASELINE_OUT)/kernel-breakdown.json
 PERF43 = generated/perf-4.3
 PERF43_JSON = $(PERF43)/derived/numbers-method.json
 
-DATA = $(STAGE_JSON) $(PASS_JSON) $(KERNEL_JSON) $(PERF43_JSON)
+# Data file and figures of section 5.2 (benchmark results) and its appendix. bench_json.py writes
+# numbers-bench.json from the CSV snapshot of the final benchmark in generated/bench-5.2/data and
+# from the section 4.3 numbers; one script per figure draws an SVG from that JSON (needs uv, which
+# installs pandas, scipy and matplotlib from the header of each script). Nothing of it is committed.
+BENCH = generated/bench-5.2
+BENCH_JSON = $(BENCH)/derived/numbers-bench.json
+BENCH_FIGURES = $(addprefix $(BENCH)/derived/figures/bench-,$(addsuffix .svg,tradeoff scenes phases memory repeatability))
+
+DATA = $(STAGE_JSON) $(PASS_JSON) $(KERNEL_JSON) $(PERF43_JSON) $(BENCH_JSON) $(BENCH_FIGURES)
 
 .PHONY: build watch clean figures
 
@@ -47,6 +55,13 @@ $(KERNEL_JSON): $(BASELINE)/scripts/kernel_breakdown.py $(BASELINE)/scripts/run_
 
 $(PERF43_JSON): $(PERF43)/scripts/perf43_json.py $(wildcard $(PERF43)/data/*.csv) $(wildcard $(PERF43)/data/*.json) $(wildcard $(PERF43)/data/*.md) $(BASELINE_RAW)/phases.txt $(BASELINE_RAW)/kernel-totals-base.csv
 	python3 -B $< --data $(PERF43)/data --baseline-run $(BASELINE_RAW) --out $(PERF43)/derived
+
+# numbers-results.json is written together with $(PERF43_JSON), which stands for the set.
+$(BENCH_JSON): $(BENCH)/scripts/bench_json.py $(BENCH)/scripts/arms.py $(wildcard $(BENCH)/data/*.csv) $(PERF43_JSON)
+	uv run $< --perf43 $(PERF43)/derived/numbers-results.json
+
+$(BENCH)/derived/figures/bench-%.svg: $(BENCH)/scripts/fig_%.py $(BENCH)/scripts/style.py $(BENCH_JSON)
+	uv run $<
 
 generated/figures/dimensioning_run_statistics.png: generated/dimensioning/scripts/dimensioning_run_statistics.py generated/dimensioning/data/runs-dev2.csv
 	uv run $<

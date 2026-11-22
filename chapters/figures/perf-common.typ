@@ -31,7 +31,7 @@
 #let millions(x, digits) = fix(x / 1e6, digits)
 #let thousands(x, digits) = fix(x / 1e3, digits)
 // A small count in words, as running text wants it.
-#let spell(n) = ("zero", "one", "two", "three", "four", "five", "six", "seven", "eight", "nine", "ten", "eleven", "twelve").at(n)
+#let spell(n) = ("zero", "one", "two", "three", "four", "five", "six", "seven", "eight", "nine", "ten", "eleven", "twelve", "thirteen").at(n)
 // "a, b and c"
 #let enumerate-and(items) = if items.len() > 1 { items.slice(0, -1).join(", ") + [ and ] + items.last() } else { items.first() }
 // width x height of a size given as (width, height), kept on one line

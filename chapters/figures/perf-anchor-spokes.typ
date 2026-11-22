@@ -187,7 +187,7 @@
       rows += (
         [#r], [#_pr.spokes.at(i)], [#_pr.shift_range.at(i)],
         fix(steps, 1), fix(tries, 1), fix(tries / steps, 1),
-        if same [#fix(tries - steps, 1) (#pct((tries - steps) / tries, 0))] else [–],
+        if same [#fix(tries - steps, 1) (#pct((tries - steps) / tries, 0))] else [-],
         fix(before.at(r - 1), 1), fix(after.at(r - 1), 1),
       )
     }
