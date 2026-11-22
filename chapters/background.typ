@@ -1,4 +1,6 @@
 #import "../template/elteikthesis.typ": *
+#import "figures/parallax.typ": parallax-figure
+#import "figures/epipolar.typ": epipolar-figure
 
 = Background
 
@@ -16,13 +18,22 @@ make sure we include enough GPU and performance optimization background to cover
 
 The goal of 3D reconstruction is to recover a representation of the 3D shape of objects or scenes. Active sensing approaches such as structured light, time-of-flight sensors, or LiDAR can directly give range measurements for immediate surface information. This thesis concentrates on the passive approach where 3D is derived from images captured by ordinary cameras.
 
-An image-based stereo reconstruction relies on the parallax effect between images from different viewpoints. Given the camera's internal parameters (intrinsic parameters) and its position and orientation (extrinsic parameters) for the viewpoints, a 3D point can be recovered if its 2D projection (a pixel) is known in at least two viewpoints. Structure from Motion (SfM) is one of the fundamental problems in image-based 3D reconstruction. Its goal is to define an optimization problem to find out the camera's intrinsic calibration matrix and to find the camera extrinsics where the images were taken from. SfM methods work by finding many reliable distinct features across images, matching the corresponding features across images, constructing 2D tracks from the matches, solving for the SfM model from the 2D tracks, and finally, refining the model using bundle adjustment @furukawa2015_mvs_tutorial. Given an initial state for the camera parameters, the optimization can iteratively project the 3D point candidates (calculated from the point correspondences) onto the images, and calculate the error between the point's projected and observed pixel location (reprojection error) @hartley_zisserman_mvg.
+An image-based stereo reconstruction relies on the parallax effect between images from different viewpoints (#ref(<fig-parallax>)). Parallax is the optical effect that describes the relative motion where objects closer to the camera move faster than objects further away. Given the camera's internal parameters (intrinsic parameters) and its position and orientation (extrinsic parameters) relative to the other views, a 3D point can be recovered if its 2D projection (a pixel) is known in at least two viewpoints by _triangulation_. More precisely, the 3D point is the intersection of 3D lines that go through the optical center and the pixel observation on the image plane @hartley_zisserman_mvg. Notice that obtaining a dense 3D representation is essentially a search problem between images. If for each pixel in one image the corresponding pixel is known in the other, recovering the 3D structure through triangulation is trivial.
+
+Given known camera intrinsics and extrinsics, a stereo algorithm has to search through all pixels between views, find the correspondences with the highest likelihood, and return the matching pixels. Epipolar geometry defines the geometric constraints that the image of a 3D point on one image is contrained to lie on a line (_epipolar line_) on another image @hartley_zisserman_mvg. . This significantly reduces the search space.
+
+Two-views are enough for a dense reconstruction @scharstein2002_taxonomy @tosi2025_deep_stereo_survey. However, using only two-views can lead to occlusion problems where some parts of objects are not visible.
+
+In a two- or multiple-view stereo setup, matches are found with the help of epipolar geometry @hartley_zisserman_mvg. It defines the geometric constraints that the image of a point on one image is constrained to lie on a line (the epipolar line) on another image which significantly reduces the search space. The general stereo correspondence problem can then be defined as: for each pixel $p_i$ in a reference image $I_r$, find its correspondence on the epipolar line in another image $I_j$ that minimizes the cost.
+
+#place(auto, float: true, clearance: 22pt, parallax-figure)
+
+#place(auto, float: true, clearance: 22pt, epipolar-figure)
+
+So far the assumption was that the camera internal parameters (focus, optical center offset, distortion coefficients) and their relative position and orientation is known. However, if the camera is moving through a scene capturing multiple images, the relative position and orientation of these views are commonly as unknown. Structure from Motion (SfM) finds and uses many reliable distinct features across multiple images to define an optimization problem to find the camera's intrinsic and extrinsic parameters. The algorithm first finds and matches the corresponding features, constructs a 2D track from the matches, and solves an initial SfM model which it then refines using bundle adjustment @furukawa2015_mvs_tutorial. Given an initial state for the camera parameters, the optimization can iteratively project the 3D point candidates (calculated from the point correspondences) onto the images, and calculate the error between the point's projected and observed pixel location (_reprojection error_) @hartley_zisserman_mvg.
 
 Nowadays, a widely used open-source tool for SfM and a general 3D reconstruction pipeline is COLMAP @colmap_sfm. A reliable and accurate SfM reconstruction is key for obtaining an accurate dense 3D representation, often requiring sub-pixel level reprojection errors @furukawa2015_mvs_tutorial. SfM pipelines also produce a set of reliable 3D points that can be utilized in dense reconstruction initialization.
 
-In order to obtain a dense representation of the 3D scene an algorithm has to search through all pixels between views for correspondences and return the matching pixels. Given known camera intrinsics and extrinsics, two-views are enough for a dense reconstruction @scharstein2002_taxonomy @tosi2025_deep_stereo_survey. However, using only two-views can lead to occlusion problems where some parts of objects are not visible.
-
-In a two- or multiple-view stereo setup, matches are found with the help of epipolar geometry @hartley_zisserman_mvg. It defines the geometric constraints that the image of a point on one image is constrained to lie on a line (the epipolar line) on another image which significantly reduces the search space. The general stereo correspondence problem can then be defined as: for each pixel $p_i$ in a reference image $I_r$, find its correspondence on the epipolar line in another image $I_j$ that minimizes the cost.
 
 == Multi-view approaches
 
