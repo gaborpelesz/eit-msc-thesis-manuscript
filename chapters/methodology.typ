@@ -261,27 +261,21 @@ The results for the 15 runs are shown in #ref(<fig-dimensioning-run-statistics>)
 
 A measurement bench is defined by a host system, a GPU and it's driver, and a docker image containing a pinned evaluator and forked methods with pinned commits.
 
-==== environment
+===== deviations (open-source forks) and environment
 
-- Docker image that builds all algorithm implementations
-- CUDA 12.8 toolkit, clang-18, static OpenCV 4.12, every methods kernel embeds sm_120 machine code
-- All lineage methods keep their `-O3` `--use_fast_math`, and `--maxrregcount=128` compile flags for device code.
+The measurement system consists of a fork from each measured lineage algorithm's open-source implementation. All forks contain a byte-identical bench timer that times the different phases of the algorithms. The bench timer can be enabled by an environment variable. The forks in the ACM lineage already synchronise after every CUDA kernel launch, so no commit was required for measuring kernel timings. CUMVS is asynchronous by default for its initialization kernels, so a commit was required to make these synchronous. The effects are negligible and they only added a measured 0.9 seconds to the wall runtime.
 
-===== deviations (open-source forks)
-
-A byte-identical bench timer that times different phases of the algorithms is commited and compiled into every measured fork. It is enabled by an environment variable that the docker image sets. The forks in the ACM lineage already synchronise after every CUDA kernel launch, so no commit was required for measuring kernel timings. CUMVS is asynchronous by default for its initialization kernels, so a commit was required to make these synchronous. The effects are negligible and they only added a measured 0.9 seconds to the wall runtime.
-
-Furthermore, all forks are compiled directly to native NVidia `sm_120`.
+The measurement system creates a docker image that contains all of the forks, ensuring that the environment matches between each method: CUDA 12.8 toolkit, clang-18 C++ compiler, a statically linked OpenCV 4.12. All forks are compiled directly to native NVidia `sm_120` feature set. Furthermore, all forks keep their own defined compile flags: `-O3` on the host-side and `--use_fast_math --maxrregcount=128` on the device-side.
 
 ==== hardware
 
-When selecting hardware for the benchmarking, the most important component for MVS evaluations is the GPU. DVP-MVS paper claims that a mainstream GPU has 24GB VRAM. This thesis does not agree with this statement. All methods are built using CUDA kernels so they vendor lock NVidia hardware. The only GPUs that have at least 24GB VRAM are the top consumer GPUs (3090, 4090, 5090) or workstation-grade alternatives. Most companies favor more affordable consumer GPUs for example 5070, or 5080 for production grade company clusters with 12GB-16GB VRAM. Especially for MVS, where for the traditional algorithms more compute can outweigh more VRAM, companies would probably choose two 5070 cards instead of a single 5080 #todo("lot of claims, any sources?").
+When selecting hardware for the benchmarking, the most important component for MVS evaluations is the GPU. DVP-MVS paper claims that a mainstream GPU has 24GB VRAM. Nowadays, obtaining a graphics card with 24GB VRAM is hardly feasible. All methods use CUDA so only the top-of-the-line consumer-grade NVidia GPUs (3090, 4090, 5090) could be considered or workstation-grade alternatives. Graphics cards with 12GB memory are much more accessible.
 
-The benchmarking system uses Nvidia 5070 GPU with 12GB VRAM. The benchmark explicitly states out-of-memory crash states. For CPU, the system uses an AMD Ryzen 9 9950X3D 16-Core Processor and a Samsung SSD 990 EVO Plus 4TB for storage. The machine has 192GB DDR5 RAM.
+The benchmarking system uses an Nvidia 5070 GPU with 12GB VRAM. The benchmark explicitly states out-of-memory crash states. For the CPU, the system uses an AMD Ryzen 9 9950X3D 16-Core Processor and a Samsung SSD 990 EVO Plus 4TB for storage. The machine has 192GB DDR5 RAM.
 
-For controlling the experiments the 5070 GPU's streaming multiprocessor (SM) clock is locked at the card's base frequency: 2317 MHz. The card has a much higher boost frequency which it might not be able to sustained under changing temperatures and fluctuating power over the long benchmarking session and could negatively affect the results. No other processes running on the GPU is a requirement for the benchmarking.
+For controlling the experiments the 5070 GPU's streaming multiprocessor (SM) clock is locked at the card's base frequency: 2310 MHz. The card has a much higher boost frequency which it might not be able to sustain under the changing temperatures and the fluctuating power over the long benchmarking session which could negatively affect the results. No other processes running on the GPU is a requirement for the benchmarking.
 
-Controlling the host requires us to pin the containers to use CPU threads 0-7,16-23 because of the 9950X3D dual CCD design having 96 MB L3 cache for these 16 threads, while having only 32 MB for the other 16. A method that is only running on the latter would be in disadvantage compared to the others that run only on the former. Apart from this, the benchmark sets the CPU governor and the Energy Performance Preference (EPP) to performance mode, and turn the CPU frequency scaling. However, the CPU frequency scaling on is left on as it didn't provide significant differences in wall time, and the AMD 9950X3D CPU can sustain boosted frequencies indefinitely. #todo[could link https://gamersnexus.net/cpus/amd-ryzen-9-9950x3d-cpu-review-benchmarks-vs-9800x3d-285k-9950x-more]
+Controlling the host requires us to pin the containers to use CPU threads 0-7,16-23 because of the 9950X3D dual CCD design has 96 MB L3 cache for these 16 threads, while having only 32 MB for the other 16. A method that is only running on the latter would be in disadvantage compared to the others that run only on the former. Apart from this, the benchmark sets the CPU governor and the Energy Performance Preference (EPP) to performance mode. However, the CPU frequency scaling is left on as it didn't provide significant differences in wall time. This agrees with public reviews @gamersnexus2025_9950x3d reporting that the 9950X3D holds its boost clocks under sustained all-core load.
 
 == Selected method decomposition
 
