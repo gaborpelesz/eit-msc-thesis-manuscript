@@ -17,7 +17,9 @@
 
 == CUMVS(APD)
 
- Notice, that there are many more micro-optimizations that was not implemented, such as parallel filling of the plane buffer. The goal of the thesis is to remain focused on times that matter, and provide minimal changes to achieve significant results on the overall run time. The missed optimization opportunities show that there is still room for improvements.
+- Notice, that there are many more micro-optimizations that was not implemented, such as parallel filling of the plane buffer. The goal of the thesis is to remain focused on times that matter, and provide minimal changes to achieve significant results on the overall run time. The missed optimization opportunities show that there is still room for improvements.
+
+- Nowadays, traditional MVS algorithms are popular over learned methods due their superior accuracy stemming from strong multi-view geometry constraints. This thesis shows, that these methods can also come with promising run time performance if small care is taken about their implementation. The modern MVS algorithms seem much slower than they are, and optimizations are targeting algorithmic behavior rather than exploring implementation options.
 
 // put the full benchmark result tables in the appendix
 

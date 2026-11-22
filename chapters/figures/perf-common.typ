@@ -64,7 +64,7 @@
 
 // ---- the builds of the anchor stack and its kernels, by their key in the data ------------------
 #let anchor-builds = (
-  "base2": [fixed base],
+  "base2": [baseline],
   "k3": [one probe per radius step],
   "k12": [random state in registers],
   "k1c": [nearest table in two passes],
@@ -76,17 +76,17 @@
 #let anchor-kernels = (
   "FindNearestStrongPoint": [nearest reliable pixel],
   "GenNeighbours": [anchor selection],
-  "InitRandomStates": [one random generator per pixel],
+  "InitRandomStates": [random generator per pixel],
 )
 
 // ---- the builds of the propagation stack and its kernels, by their key in the data --------------
 #let prop-builds = (
-  "base2": [fixed base],
+  "base2": [baseline],
   "k10": [window loops unrolled],
   "reftex": [reference point-filtered],
   "k2": [zero-weight views skipped],
   "k11": [anchors read once],
-  "k7lite": [only read cost entries filled],
+  "k7lite": [cost arrays not pre-filled],
   "cu2": [cameras in constant memory],
   "u8": [images as 8-bit textures],
 )
@@ -130,7 +130,7 @@
 // ---- the stacks combined, by their key in the data ---------------------------------------------
 // (n is the number of propagation changes in the first of the two builds that have them)
 #let stack-builds = (
-  "base2": n => [fixed base],
+  "base2": n => [baseline],
   "comb": n => [input and anchor stacks],
   "prop-comb": n => [with propagation changes 1 to #n],
   "prop-comb-cu2": n => [with propagation change #(n + 1)],
@@ -140,7 +140,7 @@
 
 // ---- the final stack: its stages and the rows of the ablation, by their key in the data ---------
 #let final-stages = (
-  "base2": [fixed base],
+  "base2": [baseline],
   "input": [input loading and transfers],
   "anchor": [anchor search],
   "prop": [propagation],
@@ -150,7 +150,7 @@
 )
 // one row per commit; a change keeps the words of the chart of its own subsection
 #let ablation-rows = (
-  "base2": [fixed base],
+  "base2": [baseline],
   "timers": [region timers (no change of the method)],
   "h1": input-builds.h1, "h2h12": input-builds.h2h12, "h14": input-builds.h14, "h3h6": input-builds.h3h6,
   "k3": anchor-builds.k3, "k12": anchor-builds.k12, "k1c": anchor-builds.k1c, "gnl": anchor-builds.gnl, "irs": anchor-builds.irs,

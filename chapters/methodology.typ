@@ -3,6 +3,14 @@
 #import "figures/kernel-breakdown.typ": kernel-breakdown-table
 #import "figures/run-breakdown.typ": run-breakdown-figure
 #import "figures/perf-input-regions.typ": perf-input-regions-figure
+#import "figures/perf-anchor-kernels.typ": perf-anchor-kernels-figure
+#import "figures/perf-anchor-spokes.typ": perf-anchor-spokes-figure
+#import "figures/perf-anchor-nearest.typ": perf-anchor-nearest-figure
+#import "figures/perf-prop-kernels.typ": perf-prop-kernels-figure
+#import "figures/perf-prop-cost.typ": perf-prop-cost-figure, perf-prop-zero-figure
+#import "figures/perf-prop-texels.typ": perf-prop-texels-figure
+#import "figures/perf-class-kernels.typ": perf-class-kernels-figure
+#import "figures/perf-common.typ": fix, pct, spell, signed, interval
 
 // booktabs-style rules: top, below header, bottom; no vertical lines
 #let _rule(w) = table.hline(stroke: w)
@@ -604,75 +612,186 @@ These improvements cost only [+130,-22] lines of mostly boilerplate code while r
 
 === Efficient anchor search
 
-=== Propagation
+The core mechanism of APD-MVS is giving reliable anchors points for unreliable pixels on textureless areas. Searching for these anchors is the first step, and it is done by three kernels: *InitRandomStates* (10.7 s, 6%) gives every pixel its unique random generator, *FindNearestStrongPoint* (94.3 s, 55%) stores the nearest reliable pixel inside a $201 times 201$ window for each unreliable pixel, *GenNeighbours* (64.8 s, 38%) then walks up to 32 sectors around the pixel to find reliable pixels (#ref(<apd-mvs-overview>)). This section removes 90% of this part's runtime in five E0 class changes (see #ref(<fig-perf-anchor-kernels>)).
 
-=== Reliability classification
+#perf-anchor-kernels-figure
 
----
+==== Anchor selection: probes, random state and candidate sort // 6ff0e7e +21,-2; 078d9f8 +7,-1; 6099c88 +48,-7
 
-#todo[what is the overhead of APD-MVS over ACMM exactly can we create an experiment where we turn off features from APD-MVS and see how much the runtime and the F1 score changes? This would let me give an argument of how much runtime are we paying for each percentage point. Then could use the same metric to show how much we improved for runtime over percentage point.]
+// Measured values of this subsection are read from the generated numbers, not typed:
+// generated/perf-4.3/scripts/perf43_json.py writes them, each with its source.
+#let _an = json("../generated/perf-4.3/derived/numbers-anchor.json").v
+#let _sp = _an.spokes.per_round          // per round with unreliable pixels: rounds 2, 3, 4
+#let _steps = _sp.steps.last()           // finest round, means per unreliable pixel
+#let _tries = _sp.tries.last()
+#let _found = _sp.found.last()
+#let _fine = _an.base.select_round_s.slice(2).sum() / _an.base.select_s   // share of the two finest rounds
 
-2. what is the theoretical maximum Gflop/s for 5070TI? How are some of our kernels doing on average compared to it?
+`GenNeighbours` selects the anchors of the unreliable pixels with the spoke search of #ref(<apd-mvs-overview>). Most of its time goes into work that has no effect on its result: it repeats probes whose outcome it already knows, it moves the state of a random generator through memory at every draw, and it sorts all of its candidates to keep only a few. Three small changes remove this work and take #pct(1 - _an.gnl.select_s / _an.base.select_s, 0) off the kernel.
+
+#perf-anchor-spokes-figure
+
+For an unreliable pixel $p$, the kernel divides the surroundings into sectors and looks for one reliable pixel in each of them (#ref(<fig-perf-anchor-spokes>)a). In every sector it walks outward from $p$ along the middle of the sector, the _spoke_, in growing _radius steps_, and at each step it probes the pixel that the spoke reaches. If the probed pixel, or the nearest reliable pixel stored for it, is a reliable pixel inside the sector, it is accepted as the anchor candidate of the sector and the walk ends. Otherwise the step is rejected and the walk continues at the next radius. A probe exactly on the spoke can miss a suitable pixel just beside it, so every radius step has up to four _tries_, and each try turns the spoke by a small random _jitter_ before it probes (#ref(<fig-perf-anchor-spokes>)b). // src: APD.cu GenNeighbours at 6ff0e7e^ (:1819-1862); .dev/perf/profiles/static-kernels.md §3
+
+The kernel timeline of Nsight Systems only shows that `GenNeighbours` is expensive: #fix(_an.base.select_s, 1)~s of a run on _pipes_, #pct(_fine, 0) of it in the two finest rounds of the image pyramid. To see what this time is spent on, the kernel was built once more with counters. In the finest round, an unreliable pixel takes on average #fix(_steps, 0) radius steps, and only #fix(_found, 0) of them end with an accepted candidate. Yet it makes #fix(_tries, 0) tries, #fix(_tries / _steps, 1) per step where #fix(_an.spokes.tries, 1) is the maximum. Nearly every radius step therefore fails and uses up all of its tries (#ref(<fig-perf-anchor-spokes>)d). // src: .dev/perf/profiles/instr-counters.md (f); .dev/perf/thesis-4.3/stage-anchor/analysis.md §1; data/kern-per-round.csv (base2)
+
+The code of the kernel explains why the tries of a step fail together. The size of the jitter is an integer that is derived from the width of the sector, and for the narrow sectors of the two finest rounds it is rounded down to zero.#footnote[The jitter is an integer between 0 and $s - 1$ that is added to the direction of the spoke, with $s = max(floor(20 tan(alpha \/ 2)), 1)$ for an angle $alpha$ between two spokes. With the #_sp.spokes.last() spokes of the two finest rounds, $20 tan(alpha \/ 2) = 1.97$ and $s = #_sp.shift_range.last()$.] The #spell(_an.spokes.tries) tries of a step then probe the same pixel and reach the same decision (#ref(<fig-perf-anchor-spokes>)c): when the first try is rejected, the other three are rejected as well. In the finest round, #pct((_tries - _steps) / _tries, 0) of all tries repeat a probe whose outcome is already known. // src: APD.cu at 6ff0e7e^ :1809, :1827-1829; .dev/perf/thesis-4.3/stage-anchor/cards/K3.md §1; .dev/perf/profiles/static-kernels.md §3
+
+The first change makes one try per radius step wherever the jitter is zero. The skipped tries still draw their random numbers and discard them. The generator of a pixel later also supplies the random choices of the RANSAC filtering and of the propagation, so drawing the same numbers keeps every later random decision, and with it the result, unchanged. // src: 6ff0e7e; .dev/perf/thesis-4.3/stage-anchor/cards/K3.md §2, §3
+
+These draws are the second cost. A profile of one launch of the kernel with Nsight Compute shows its second-level cache #pct(_an.k12.ncu.l2_busy.first(), 0) busy. The generator state of a pixel lives in device memory, and the kernel loads and stores it at every draw, because the compiler cannot assume that no other thread sees this memory. The second change copies the state into a local variable when a thread starts, draws from the copy, and writes it back once when the thread ends. The draws and their order are the same. // src: 078d9f8; .dev/perf/thesis-4.3/stage-anchor/cards/K12.md §1-§3
+
+The third change concerns the end of the kernel. The candidates of all sectors are filtered by a RANSAC plane fit and sorted by their distance to the fitted plane, and the #spell(_an.anchors.kept) closest become the anchors of the pixel. The kernel sorted all candidates in the memory of its thread, although only #spell(_an.anchors.kept) entries of the result are used; in a profile of the kernel after the second change, this sort holds #pct(_an.sort.stall_share, 0) of the stall samples. The change keeps only the #spell(_an.anchors.kept) best candidates, in registers, while it goes through them, and it yields the same #spell(_an.anchors.kept) in the same order. // src: 6099c88; .dev/perf/thesis-4.3/stage-anchor/cards/GN-L.md §1-§3; .dev/findings/genneighbours-local-memory.md
+
+`GenNeighbours` time reduces from #fix(_an.base.select_s, 1)~s to #fix(_an.k3.select_s, 1)~s with the first change, to #fix(_an.k12.select_s, 1)~s with the second and to #fix(_an.gnl.select_s, 1)~s with the third (builds 1, 2 and 4 in #ref(<fig-perf-anchor-kernels>)). On top of the changes of #ref(<sec:perf-input>), the first two take the wall time of the whole run from #fix(_an.abl.k3.run_s - _an.abl.k3.run.mean, 1)~s to #fix(_an.abl.k12.run_s, 1)~s, the mean of #spell(_an.abl.n) seeded runs, and the third saves a further #fix(-_an.abl.gnl.run.mean, 1)~s. All three changes are of class E0: with a fixed seed, the fused point cloud is identical byte for byte to that of the baseline, at native resolution and for #spell(_an.abl.k12.md5_seeds) seeds. Together the changes are [+76, -10] lines in the source code. // src: data/kern-anchor2-k3-vs-base2.csv, kern-anchor2-k12-vs-k3.csv; data/kern-gnl-vs-k3.csv; data/ablation.csv (rows K3, K12, GN-L: run time and md5 of seeds 1-3)
+
+The first two changes are applied in this order for a reason. Applied alone to the baseline, the second change gave a slightly different point cloud at native resolution, although its source computes the same values: the compiler then builds the spoke search with a different mix of floating-point instructions. That the output is identical is therefore a property of the built program, which is checked for every build, and with the first change in place it holds. The gains of these two changes also overlap: in the opposite order, the second change alone removes #fix(_an.order.first.k12_s, 1)~s and the first only #fix(_an.order.first.k3_s, 1)~s more. // src: .dev/perf/thesis-4.3/stage-anchor/cards/K12.md §7; .dev/findings/k12-native-codegen.md; data/kern-k12-2-vs-base2.csv, kern-k3-vs-k1c.csv
+
+==== The nearest table in two passes // 9bac0e6
+
+#let _an = json("../generated/perf-4.3/derived/numbers-anchor.json").v
+#let _win = _an.window
+// a count with a thousands separator
+#let _count(n) = {
+  let s = str(n)
+  if s.len() > 3 { s.slice(0, s.len() - 3) + "," + s.slice(s.len() - 3) } else { s }
+}
+
+When a probe of the spoke search lands on an unreliable pixel, the search takes the nearest reliable pixel of that pixel as its candidate. `FindNearestStrongPoint` provides it: for every unreliable pixel, it stores the nearest reliable pixel inside a window of #_win.side #sym.times #_win.side pixels around it, in the _nearest table_. It is the most expensive kernel of the anchor stage, because it reads the whole window for every unreliable pixel, however close the nearest reliable pixel is. Splitting the search into two one-dimensional passes fills the same table with at most #pct(_win.two_pass_samples / _win.samples, 0) of the reads, and the kernel time, summed over a run on _pipes_, falls from #fix(_an.k12.nearest_s, 1)~s to #fix(_an.k1c.nearest_s, 1)~s.
+
+// A float: the template sets figures in place, which left half a page empty here.
+#place(auto, float: true, clearance: 22pt, perf-anchor-nearest-figure)
+
+A profile of one launch with Nsight Compute shows that the kernel is not limited by memory: neighbouring pixels read almost the same window, so nearly all reads are served from the cache. It is limited by the number of instructions it executes, and that number does not depend on how close the answer is. All #_count(_win.samples) pixels of the window are read and compared for every unreliable pixel (#ref(<fig-perf-anchor-nearest>)a). The counter build of the previous subsection also recorded how far away the answer is: at the finest level of the image pyramid, the median distance to the nearest reliable pixel is #_win.median_px pixels, while the window reaches #_win.radius pixels in every direction. // src: .dev/perf/thesis-4.3/stage-anchor/cards/K1c.md §1, §3; .dev/perf/profiles/p2-kernels.md (FindNearestStrongPoint: issue bound, 94 % L1 hits); .dev/perf/profiles/instr-counters.md (e)
+
+The change uses the decomposition of separable distance transforms, restricted to the window: two one-dimensional passes replace the two-dimensional scan. The first pass visits every pixel and finds the nearest reliable pixel in the column of that pixel, walking up and down the column, at most #_win.radius rows each way, and stopping at the first one it meets (#ref(<fig-perf-anchor-nearest>)b). The second pass visits every unreliable pixel $p$. It reads the results of the first pass along the row of $p$, one for each column of the window, and keeps the candidate that is nearest to $p$ (#ref(<fig-perf-anchor-nearest>)c). No candidate is lost: whichever reliable pixel is nearest to $p$, it is also the nearest one in its column as seen from the row of $p$, so the first pass has stored it and the second pass finds it. Each pass reads at most #_win.side pixels for a pixel, #_win.two_pass_samples instead of #_count(_win.samples) (#ref(<fig-perf-anchor-nearest>)d). The price is one more byte of device memory per pixel, which holds the result of the first pass. // src: 9bac0e6; .dev/perf/thesis-4.3/stage-anchor/cards/K1c.md §2, §3
+
+The table has to hold exactly the same entries as before, also where two reliable pixels are equally near and the order of the original scan decides between them. The two passes are built to decide such ties in the same way.#footnote[Ties go to the leftmost and then to the upper pixel, as in the original scan. The passes compare integer squared distances where the scan compares square roots, which was verified on the GPU to give the same order.] // src: .dev/perf/thesis-4.3/stage-anchor/cards/K1c.md §2 "Why it is the same entry" (sqrtmono test: 3737 squared distances)
+
+A search that grows outward from the pixel and stops at the first reliable pixel would be the more obvious remedy. It was not built. Of the unreliable pixels, #pct(_win.none_share, 1) have no reliable pixel in their window and would still scan all of it, and on a GPU the threads of a group wait for the slowest among them. The two passes do the same small amount of work for every pixel. // src: .dev/perf/thesis-4.3/stage-anchor/cards/K1c.md §1 "Why K1c and not K1a"; .dev/perf/profiles/instr-counters.md (e)
+
+The gain is build 3 in #ref(<fig-perf-anchor-kernels>), and it is the largest step of the anchor stage: the wall time of the whole run falls from #fix(_an.abl.k12.run_s, 1)~s to #fix(_an.abl.k1c.run_s, 1)~s, the mean of #spell(_an.abl.n) seeded runs. The change is of class E0, that is, the output is identical: with a fixed seed, the fused point cloud is the same byte for byte as that of the baseline, at native resolution and for #spell(_an.abl.k1c.md5_seeds) seeds. The nearest table feeds every launch of the spoke search, so a single different entry would very likely show there. // src: data/kern-anchor2-k1c-vs-k12.csv; data/ablation.csv (row K1c: run time and md5 of seeds 1-3); .dev/perf/thesis-4.3/stage-anchor/cards/K1c.md §4, §5, §7
+
+==== Tabulated skip-ahead for the random generators // 962aaf4
+
+#let _an = json("../generated/perf-4.3/derived/numbers-anchor.json").v
+
+`InitRandomStates` gives every pixel its own random generator at the start of every reference image pass. Each generator has to start at its own position in the random stream, which is given by the row and the column of the pixel. The library reaches this position by skipping ahead in the stream, with about #_an.init.products_before matrix-vector products per pixel, each on a matrix that is read from device memory. In a profile of the kernel, #pct(_an.init.stall_share, 0) of the stall samples fall into this loop. // src: .dev/perf/thesis-4.3/stage-anchor/cards/IRS.md §1, §3
+// NOTE(author): the profile (perf-ncu-native-r1) is from the base before the two
+// RescaleMatToTargetSize fixes; the kernel times are from the fixed base.
+
+The skip is a linear map of the generator state, and it is the same for all pixels of a row and for all pixels of a column. The change therefore computes it once per row and once per column, with the functions of the library itself, and stores each result as a matrix. A pixel then applies #spell(_an.init.products_after) matrices where it applied about #_an.init.products_before. The generator states are the same bit for bit, for any seed, so every random number of the run is unchanged; the change is of class E0, checked on the fused point cloud for #spell(_an.abl.irs.md5_seeds) seeds. `InitRandomStates` falls from #fix(_an.gnl.init_s, 1)~s to #fix(_an.irs.init_s, 1)~s (build 5 in #ref(<fig-perf-anchor-kernels>)) for #_an.init.table_mb~MB of tables at native resolution, and the wall time of the whole run from #fix(_an.abl.gnl.run_s, 1)~s to #fix(_an.abl.irs.run_s, 1)~s. // src: 962aaf4; .dev/perf/thesis-4.3/stage-anchor/cards/IRS.md §2, §4, §5; data/kern-irs-vs-gnl.csv; data/ablation.csv (row IRS)
+
+=== Propagation <sec:perf-prop>
+
+// Measured values of this section are read from the generated numbers, not typed:
+// generated/perf-4.3/scripts/perf43_json.py writes them, each with its source. Three kinds of
+// measurement are used, and they come from different builds:
+//   kernel seconds (_pb, _p1 ... _p7)  one run under Nsight Systems, seed 1, of builds that hold the
+//                                      propagation changes alone on the baseline (the 8-bit textures:
+//                                      on top of all earlier changes);
+//   wall time and F1 (_pa)             plain seeded runs of the commits of the final stack, where these
+//                                      commits follow the input and anchor changes (data/ablation.csv);
+//   counters (_pn)                     one launch in the finest round under Nsight Compute, seed 1.
+// The two bases (kernel seconds on the baseline, wall time on the stack) are stated once, in the
+// opening paragraph and in the caption of <fig-perf-prop-kernels>; source: the header comment of
+// .dev/perf/thesis-4.3/thesis/4.3-prop.typ.
+// Paths in the `// src:` comments are relative to .dev/perf/thesis-4.3/stage-prop/ of the
+// production-apd-mvs checkout unless they start with data/ (generated/perf-4.3/data) or .dev/;
+// "upstream" is benchmark/methods/APD-MVS at b105b0b.
+#let _pr = json("../generated/perf-4.3/derived/numbers-prop.json").v
+#let (_pb, _p1, _p2, _p3, _p4, _p5, _p6, _p7) = (_pr.base, _pr.k10, _pr.reftex, _pr.k2, _pr.k11, _pr.k7lite, _pr.cu2, _pr.u8)
+#let _pa = _pr.abl
+#let _pn = _pr.ncu
+// the two kernels of the reliability classification that evaluate the same matching cost
+#let _pcls(a) = a.depth_to_weak_s + a.local_refine_s
+// a difference in F1 with its confidence interval
+#let _pf1(s) = [#signed(s.mean, 4) #interval(s, 4)]
+// the share of the source images of an unreliable pixel that get a view weight of zero
+#let _pzero = 1 - _pr.views.weighted / _pr.views.total
+// the share of the evaluations of an unreliable pixel that are only used with their view weight
+#let _pweighted = _pr.calls.weighted_only_per_view / (_pr.calls.deformable_per_view + _pr.calls.plain_per_view)
+
+Propagation is the part of an image pass that improves the planes, iteration by iteration (#ref(<alg:apd-imagepass>)). Its kernels take #fix(_pb.prop_s, 1)~s, #pct(_pb.prop_share_of_kernels, 0) of the kernel time of the baseline, and #pct(_pb.weak_share_of_prop, 0) of this is the update of the unreliable pixels. The rest is the update of the reliable pixels and the fit of the planar prior (#ref(<fig-perf-prop-kernels>)).
+
+Both updates spend their time in the matching cost $rho_j (theta)$ (#ref(<apd-mvs-overview>)). One _evaluation_ of this cost scores one candidate plane of a pixel in one source image. It compares a _window_ of samples around the pixel and _fetches_ every sample twice, once from the reference image and once from the source image (#ref(<fig-perf-prop-cost>)a). For an unreliable pixel, an evaluation also compares a smaller window at each anchor, so its fetches are scattered over both images (#ref(<fig-perf-prop-cost>)b). // src: analysis.md "Sources and conventions", §1; upstream APD.cu :401-530 (ComputeBilateralNCCNew), :531-623 (ComputeBilateralNCCOld)
+
+#place(bottom, float: true, clearance: 22pt, perf-prop-cost-figure)
+
+The update of the unreliable pixels spends its time on these scattered fetches. Many of them miss the first-level cache of the GPU and have to be served by the second-level (L2) cache, and the rate at which this cache serves them limits the kernel. This section shows how this was found, and it removes work in four steps. The window loop of the matching cost issues its fetches one at a time and reads the reference image through an interpolating filter that it does not need. Costs are computed for source images whose weight is zero. The anchors, the cost arrays and the cameras pass through memory more often than necessary. The images take four bytes per pixel where one suffices. Together, the seven changes remove #pct(1 - _p7.prop_s / _pb.prop_s, 0) of the kernel time of the propagation (#ref(<fig-perf-prop-kernels>)). Six of them leave the result identical, or identical up to floating-point rounding (classes E0 and E1). The seventh changes it (class E2), without a measurable effect on the F1 score. // src: analysis.md "Sources and conventions", §1 "Stalls", "Is the weak kernel L2 bound?"; data/kern-k10-2-vs-base2.csv (base_s), kern-8bit-vs-comb-cu2.csv (cand_s); data/ablation.csv (rows IRS, 8-bit); .dev/perf/thesis-4.3/gate-m4-decisions.md items 1, 2; profile perf-ncu-native-r1 (first-level cache hit rate 62 %, numbers-prop.json profile.l1_hit)
+
+#place(auto, float: true, clearance: 22pt, perf-prop-kernels-figure)
 
 
-/*
-Simple ideas:
-- 100-130s cumulative input loading, after "refine init 4" the kernel times are higher then the input loading itself. We could just run another CPU thread that loads for the next iteration preemtively.
+==== The window loop of the matching cost: unrolled and a point filter // aebb78f +89,-58; c8c9666 +1,-1
 
-Performance notes
+The matching cost calculation is a standalone function. The two updates of the propagation  and the two kernels of the reliability classification (#ref(<sec:perf-class>)) both call it. Therefore, an improvement of it benefits all of these kernels. Its core is a loop over the samples of a window: each turn fetches one sample from the reference image and from the source image and adds it to the sums of the cost. // src: cards/K10.md §6, reftex.md §6; data/kern-k10-2-vs-base2.csv, kern-reftex-2-vs-k10-2.csv (strong: base_s, cand_s)
 
-FindNearestStrongPoint and GenNeighbours seems to be unnecessary, there must be a better algorithm to search for nearest anchors. Check my analysis on ilka0
+A profile of the update of the unreliable pixels with Nsight Compute pointed to this loop. #pct(_pr.profile.window_loop_stall_share, 0) of the stalls happen in this kernel, therefore it spends most of its waiting time on the fetches of its windows. The reason is the way the loop is executed. Each turn issues its two fetches and uses their results immediately. A GPU thread executes its instructions in order, so the next turn cannot issue its fetches before these two have arrived, and only one pair of fetches is under way at a time. The compiler cannot reorder the fetches, because the reference code of APD-MVS reads the size of a window at run time, so the number of turns is unknown when the kernel is compiled. // src: analysis.md §1 "Stalls"; cards/K10.md §1-§3; upstream APD.cu :461-474, :550-574, main.h :76-79
 
-The precomputation itself is brute force. It scans all 201 × 201 = 40,401 pixels around each WEAK pixel, every pass from round 2 on. That is O(weak pixels × 40k) reads. A distance transform (exact EDT or jump flooding) gives the same nearest-reliable map in roughly O(N) or O(N log N). It is a clear example of implementation overhead rather than algorithmic necessity, so it is a natural candidate both for production APD-MVS and for a per-kernel timing breakdown. FindNearestStrongPoint currently runs inside the patchmatch.init phase, so its own cost isn't separated in the store yet.
+The first change adds compile time constants to the size of the window for the two window sizes that the method uses. The compiler then unrolls the loop and issues all fetches of a window back to back, so that their waiting times overlap. As a result, the update of the reliable pixels falls by #pct(1 - _p1.strong_s / _pb.strong_s, 0), from #fix(_pb.strong_s, 1)~s to #fix(_p1.strong_s, 1)~s (build 1 in #ref(<fig-perf-prop-kernels>)), and the two classification kernels together by #pct(1 - _pcls(_p1) / _pcls(_pb), 0), from #fix(_pcls(_pb), 1)~s to #fix(_pcls(_p1), 1)~s. // src: data/kern-k10-2-vs-base2.csv; cards/K10.md §5, §6; analysis.md §1 "Is the weak kernel L2 bound?"; .dev/findings/l2-throughput-is-tag-requests.md "Facts", "Consequence"
 
-spoke probes land at scattered positions, so neighbouring threads in a warp read unrelated entries. These loads are uncoalesced. The pointer is const in GenNeighbours, but nothing marks it __restrict__ or reads it through __ldg, so whether the read-only cache is used is left to the compiler. This is cheap compared with the 201 × 201 scan that fills the table, so it's a minor point for production APD-MVS.
+The update of the unreliable pixels, the kernel in which the loop was profiled, gains only #pct(_p1.gain.weak_share, 1), although it executes fewer instructions. The difference lies in where the fetches are served. A fetch that the first-level cache cannot serve becomes a request to the L2 cache. The profiler reports a 31% L2 cache rate for the the compact windows of the reliable pixel update, and 71% for the scattered windows of unreliable pixel update. Overlapping the fetches helps a kernel that waits for each fetch in turn. It does not help a kernel that is limited by the rate at which the L2 cache serves its requests. For the update of the unreliable pixels, a further change therefore helps only if it removes requests. // src: cards/K10.md §3 ("limited by how fast L2 serves scattered texture misses ... which more fetches in flight cannot raise"), §5-§6; analysis.md §1 (the update of the reliable pixels at 31 % on the same counter, before the first change); data/kern-k10-2-vs-base2.csv; ncu perf-ncu-native-r1 (L2 tag rate)
 
+The performance improvement attempt makes the fetch from the reference image lighter. The texture of the reference image was created with linear filtering, like those of the source images, but a window reads it at pixel centers only, where the interpolation of four pixels returns the pixel itself. The change gives the reference image a point filter, which reads one pixel. The update of the unreliable pixels gains only #pct(1 - _p2.weak_s / _p1.weak_s, 1) (build 2), because its requests come mostly from the source images: the fetches from the reference image are mostly served by L1 cache. The two classification kernels, which are not limited by their requests, gain more and fall from #fix(_pcls(_p1), 1)~s to #fix(_pcls(_p2), 1)~s. // src: cards/reftex.md §1-§3, §7; data/kern-reftex-2-vs-k10-2.csv; upstream APD.cpp :601; data/ablation.csv (rows IRS, K10, reftex: run time and md5 of seeds 1-3); cards/K10.md §7 (nofma identity); .dev/perf/ideas.md row K4 ("ref fetches mostly hit L1, src misses dominate L2"; reference fetch line 6 % of the stall samples against 27 % for the source fetch)
 
-*/
+==== Skipping the source images of zero weight // b3fc14a +50,-10
 
-/*
-obvious inefficient implementation decisions:
-- ACMH uses F32 RGB images. They are converting a uint image to float. They could use texture acces on float images I think which might lead to perf increase due to lower memory traffic. This needs to come from a measurement though: measurement should show that we are memory bound!
-```cpp
-image_uint.convertTo(image_float, CV_32FC1);
-images.push_back(image_float);`
-```
+After its view selection, an update gives most source images a view weight of zero, and still evaluates the matching cost in all of them. Thus the third optimization attempt skips the evaluations whose cost is multiplied by zero and takes #pct(_p3.gain.weak_share, 1) off the update of the unreliable pixels. Skipping these evaluations leaves every score unchanged. // src: cards/K2.md §1, §6; data/kern-k2-vs-reftex-2.csv (weak: -delta_s / base_s)
 
-TODO
-- Always ask: are we memory bound or compute bound, why?
+#place(auto, float: true, clearance: 22pt, perf-prop-zero-figure)
 
-- generally we should do a deep measurement and performance analyses of APD-MVS integrated into CUMVS. We need to plan this out and understand what we are going to measure. This has to be written down, and this will drive the GPU background section
-- I have to better understand the implementation of APD-MVS.
-- introduce CUMVS improvements into APD-MVS and see whether we can gain easy performance using these methods
-- analyse quorum-mvs and see if it made the CUMVS improvements itself, if not, why not and what did it do instead
-- octahedral normals are a likely interesting thing to try
-*/
+An update evaluates its candidate planes in two halves (#ref(<fig-perf-prop-zero>)a). In the first half it evaluates the candidate planes of the anchors in every source image, and the view selection derives the view weights from these costs (#ref(<alg:acmm-pixel>)). In the second half it evaluates the remaining candidates, such as the planar prior, and scores each by the mean of its costs, weighted with the view weights. A cost from a source image of weight zero does not affect this score. A build of the kernels with counters shows that, in the finest round of the image pyramid, #pct(_pzero, 0) of the source images of an unreliable pixel carry a weight of zero. The second half holds half of all evaluations, so #pct(_pweighted * _pzero, 0) of the evaluations of an unreliable pixel compute a cost that is then multiplied by zero (#ref(<fig-perf-prop-zero>)b). // src: cards/K2.md §1; analysis.md §1 "Calls per weak pixel per launch"; .dev/perf/profiles/instr-counters.md (a), scale 0, weak; upstream APD.cu :1362 (8 anchor planes), :1462 (current plane), :917 (fit plane), :958 (5 refined planes), :1502 (plain rewrite); own APD.cu at 1ecaf34 :1557, :1658, :1098, :1139, :1701
 
-/*
-Itt van az algoritmus leirasa es kidolgozasa
+==== Anchors, cost arrays and cameras: less memory traffic // 34a9a62 +23,-10; 59532c5 +24,-7; f71b9cc +17,-10
 
-claude: mik azok amik érdekesek lehetnek más szemszögéből, mik azok az angle-ök
+Beside the images, the pixel updates move three kinds of data through memory more often than needed. Three small changes remove this traffic and take another #fix(_p3.prop_s - _p6.prop_s, 1)~s off the propagation kernels (builds 4 to 6 in #ref(<fig-perf-prop-kernels>)). The fourth change reads the positions of the anchors of a pixel once and not in every evaluation. The fifth change no longer initializes those cost arrays of a thread whose entries are all computed before they are read; relative to its size, the update of the reliable pixels gains most from it. The sixth change keeps the cameras in constant memory, as CUMVS does for its own matching kernels. Its gain is small, because the APD-MVS kernels already read the cameras mostly from the L1 cache. // src: cards/K11.md §1-§3, §5; cards/K7lite.md §1-§3, §5 and commit 59532c5 (rows of anchors without a plane are filled, weighted-only vectors not initialized); cards/CU2.md "Credit" (cuda_multi_view_stereo.cu:224-230), §1-§3, §5; data/kern-k11-vs-k2.csv, kern-k7lite-vs-k11.csv, kern-cu2-vs-k7lite.csv; data/ablation.csv (rows K11, K7-lite, CU-2: run time and md5 of seeds 1-3); upstream APD.cu :395-399, :435, :1005, :1346, :408-410, :538-540
+// NOTE(author): dropped after the cold read: the baseline profile that attributes 77% of the
+// excessive global-load sectors (ncu "excessive sectors", uncoalesced accesses; textures aside) to
+// the anchor re-reads (K11.md §1, perf-ncu-native-r1, base before the RescaleMatToTargetSize
+// fixes), and the 1.2 to 1.4 kB that the initialization wrote per thread (K7lite.md §3).
 
-I'm not sure whether this should be here or in the results yet, but we will include it here and we will be able to still change it later.
+==== Images as 8-bit textures // 1737ce6 +146,-58
 
-- this section should select an algorithm that is doing poorly in terms of runtime, it will be: APD-MVS (check whether I still agree that APD-MVS is the best candidate. I should read APD-MVS, MP-MVS, and DP-MVS (the thin structured paper))
-- this section should analyse each component of the benchmark, understand whether it is necessary to spend time on those certain steps or not.
-- From the benchmarking, we should also understand whether the runtimes that the published papers share, are regarding to their total runtime, or to their patch match algorithms only. I know that for MP-MVS, they were comparing their patch match kernel performance with ACMMP's kernel performance, and I could verify their claims of being faster almost exactly.
-- and point out the different contributing pieces
+The update of the unreliable pixels still dominates the propagation kernels and is still limited by its requests. The last performance improvement attempt stores the images in their data type instead of converting them to 32-bit floats. This reduces the memory footprint of images, and require fewer request in the fetches of the windows. It takes #pct(1 - _p7.weak_s / _p6.weak_s, 0) off the kernel, and it is the only change of this section that alters values with which the method computes (class E2). // src: data/kern-cu2-vs-k7lite.csv; data/ncu-*.csv (BlackPixelUpdateWeak, l2_tag_pct 69-73% in builds 3 to 6); cards/8bit.md §1; data/kern-8bit-vs-comb-cu2.csv
 
-Methodology:
-1. we are going to run the method with the benchmark steps, to get a sense of how the timings are doing. This we will able to derive from the benchmarking results themselves.
-2. We should first integrate APD-MVS to be working in CUMVS
-3. Then, we should be able to continue looking into the internals, and performance optimize the method.
+#place(auto, float: true, clearance: 22pt, perf-prop-texels-figure)
 
+The L2 cache serves data in sectors of a fixed size, so the number of requests depends on how many pixels a sector holds. In the finest round the grayscale images hold 8-bit integers, but, as in the reference code of APD-MVS, they are uploaded as 32-bit floats per pixel. CUMVS stores the images of its own matching kernels with one byte per pixel, and a sector then holds four times as many pixels (#ref(<fig-perf-prop-texels>)a, b).
 
-There is no reason why I shouldn't use and fork CUMVS as my primary baseline for the production ready ipmlementation. I should integrate APD-MVS into CUMVS, and then continue performance optimizing it and map it to the CUMVS style. I can go even further than CUMVS did when they perf optimized ACMH. I should acknowledge their great work, and should utilize what they've already created instead of creating my own! This is easier to justify and will easier and better from the thesis perspective.
+In a profiled launch, the requests to the L2 cache fall by #pct(_pn.u8.weak.drop.l2_req, 0) (#ref(<fig-perf-prop-texels>)c), far more than the #pct(1 - _p7.weak_s / _p6.weak_s, 0) by which the kernel gets faster. The limit has moved: the kernel is no longer limited by its requests, and what remains is the latency of the individual fetches and the computation. The peak of the device memory is also reduced by #pct(_pr.u8.pipes_gpu_saved_mib / _pr.u8.pipes_gpu_peak_mib.first().last(), 0), from #_pr.u8.pipes_gpu_peak_mib.first().last()~MiB to #_pr.u8.pipes_gpu_peak_mib.last().last()~MiB. // src: data/ncu-8bit-vs-comb-cu2.csv (BlackPixelUpdateWeak); cards/8bit.md §5; data/kern-cu2-vs-k7lite.csv (cand_s), kern-8bit-vs-comb-cu2.csv (cand_s); data/ablation.csv (row 8-bit)
 
-instead of Quorum MVS, do an ablation study based on the selected algorithm (for example APD-MVS or MP-MVS). Change only a single component at a time, for example remove the JPEG re-encoding and measure how it affects the system, and move component by component to show how we are slowly improving the system. Move in small iterations and do the same when making the system into a production system. Make sure we stay bit-identical for performance improvements, and make sure we measure as ablation when we are deviating from the original implementation.
-*/
+The result changes only through the source images. They are read between pixels, and the interpolation of 8-bit values differs from that of 32-bit values in the last bits. Where two candidate planes cost nearly the same, this can decide which of them wins, so the point cloud differs from the baseline. However, the quality is unchanged: over #spell(_pa.f1_n) seeds on _pipes_, the difference in F1 at #_pr.tol.decides_cm~cm against build 6 is #signed(_pa.u8.f1_2cm.mean, 4), with a #_pr.ci_level_pct% confidence interval (#ref(<eq-ci>)) of #interval(_pa.u8.f1_2cm, 4). // src: cards/8bit.md §2, §4 "Reference: exact", "Sources: not exact", "Tier 1"; data/ablation-f1.csv (row 8-bit at 2cm); data/tier1-8bit-vs-comb-cu2.csv (cand_md5, ref_md5)
 
-#todo[ablation study]
+==== Combined gain
 
-/*focus on production implementation considerations, plus performance considerations*/
+ Together the seven changes take the propagation kernels from #fix(_pb.prop_s, 1)~s to #fix(_p7.prop_s, 1)~s, in [+350, -154] lines of source code. On top of the changes of the previous sections, the wall time of a run falls from #fix(_pa.stage.from_s, 1)~s to #fix(_pa.u8.run_s, 1)~s (the mean of #spell(_pa.n) seeded runs), which is #pct(_pa.u8.run_s / _pr.stack.base_run_s, 0) of the #fix(_pr.stack.base_run_s, 1)~s of the baseline.
 
-#todo[hardware utilization chart]
+=== Reliability classification <sec:perf-class> // 10647e6 +39,-2; a2dfcc4 +8,-1; ce4313e +18,-6; d2dfdff +1,-1; b29db51 +19,-14; fix 1ecaf34 +7,-0
+
+// Measured values of this section are read from the generated numbers, not typed:
+// generated/perf-4.3/scripts/perf43_json.py writes them, each with its source.
+// Kernel times, the profile and the counters are from the builds on which the changes were made:
+// the stack with the propagation changes before the 8-bit textures (5cf8608) and the five builds on
+// top of it (2045188, f223fa9, b921d39, 40da3b4, 97809e9). Run times, the F1 differences and the
+// identity checks of the E0 changes are from the final order (_cl.abl.*), where the same commits
+// follow the 8-bit textures; on main they are 10647e6, a2dfcc4, ce4313e, d2dfdff, b29db51 and the
+// bug fix 1ecaf34 (.dev/perf/thesis-4.3/stack/main-hash-map.md).
+#let _cl = json("../generated/perf-4.3/derived/numbers-class.json").v
+#let _clb = _cl.prop                       // the build before the changes of this section
+#let _clc = _cl.counters                   // counters over all passes of one run, shares in percent
+#let _cls = _cl.stall                      // one profiled launch per kernel, shares in percent
+#let _clp(x, digits) = [#fix(x, digits)%]  // a share that the data gives in percent
+
+#let _clr = _cls.depth_to_weak             // stall samples of the profiled launch of DepthToWeak, by region, in percent
+#let _cl-cost = _clr.window.stall + _clr.geometric.stall + _clr.projection.stall + _clr.setup.stall + _clr.homography.stall
+
+At the end of every reference image pass, the reliability evaluation of #ref(<apd-mvs-overview>) labels each pixel. Two kernels do this work: `DepthToWeak` (#fix(_clb.depth_to_weak_s, 1)~s) samples the cost profile of a pixel and derives its label, and `LocalRefine` (#fix(_clb.local_refine_s, 1)~s) then moves the pixel to a nearby depth if the matching cost there is clearly lower. `LocalRefine` re-evaluates the matching cost at depths at where `DepthToWeak` already did making it an easy target to eliminate. `DepthToWeak` itself, however, is only #pct(1 - _cl.c3.depth_to_weak_s / _clb.depth_to_weak_s, 0) faster after the #spell(_cl.changes) changes that were targeting this region (#ref(<fig-perf-class-kernels>)a). // src: data/kern-c2-vs-5cf8608.csv (base_s), kern-c3chain-vs-5cf8608.csv; .dev/perf/thesis-4.3/stage-class/cards/C2.md §1-§3 (2045188: the 11 depths of LocalRefine are samples of DepthToWeak's sweep, for the same pixel, plane and views); upstream APD-MVS APD.cu:2061-2083 against :2203-2216 at b105b0b
+
+#place(auto, float: true, clearance: 22pt, perf-class-kernels-figure)
+
+The reason for not finding opportunities to improve is that `DepthToWeak` is limited by computation, not by memory. Profiling a launch with Nsight Compute shows that #_clp(_cl.ncu.base.depth_to_weak.l1_hit_pct, 0) of the kernel's reads are served by the first-level cache, and #_clp(_cl-cost, 0) of its stall samples are in the evaluation of the matching cost. The kernel does not wait for data, and its own logic around the matching cost is negligible. Its run time is effectively dominated by the cost of evaluations. The cost of one evaluation was already reduced by the changes of #ref(<sec:perf-prop>), which roughly improved 2x for these two kernels (#ref(<fig-perf-prop-kernels>)). The kernel can therefore only get faster by evaluating less which is hardly possible without changeing the result. // src: data/stall-5cf8608-DepthToWeak.csv (regions: window 51.6, geometric cost 16.6, projection of the window samples 10.8, set-up 5.4, homography 2.8 = matching cost; sweep control 5.6, view-weight load 4.4, valley analysis 1.3 = the kernel's own logic; other 1.6); data/ncu-5cf8608.csv; .dev/perf/thesis-4.3/stage-class/analysis.md §7.3 ("Neither is memory bound: they are latency and issue bound"); data/kern-k10-2-vs-base2.csv (93.6 s before the propagation changes)
+
+`DepthToWeak` evaluates the matching cost at #_cl.sweep.samples depths per pixel, in every selected view, and a build with counters shows that more than nine in ten of these evaluations are needed for the label (#ref(<fig-perf-class-kernels>)b). The remaining ones are now skipped, which gains little. A larger gain needs fewer depths, and fewer depths change the labels: in an offline test on the cost profiles of one run, every second depth gave #pct(1 - _cl.c8.step2.agree, 0) of the pixels another label, and the #fix(_cl.c8.win20.samples, 0) nearest depths #pct(1 - _cl.c8.win20.agree, 0). Since the labels decide which pixels get anchors, this is a different method and not a faster classification (class E2), and it is left as future work. // src: data/counters-5cf8608-native-s1.csv (edge_pct 3.3, w0_share_pct 5.4; instrumented build c397c7c on 5cf8608, native, seed 1, all passes); .dev/perf/thesis-4.3/stage-class/analysis.md §7.2, §7.6; cards C1.md, C3.md, K13.md, C9.md; cards/C8.md §2-§6 and data/c8-summary.json (step2: every second sample, win20: the 41 nearest; run at 1024 px, 46.5 million profiles; the script reproduces the label of the kernel for every pixel)
+
+Together, the two kernels go from #fix(_clb.class_s, 1)~s to #fix(_cl.c3.class_s, 1)~s in [+85, -24] lines of source code, and the wall time of a run from #fix(_cl.abl.stage.from_s, 1)~s to #fix(_cl.abl.stage.to_s, 1)~s, the mean of #spell(_cl.abl.n) seeded runs. Three of the changes are of class E0 and two of class E1; the differences in F1 of the latter are well inside the margin of #sym.plus.minus#fix(_cl.margin, 3) of #ref(<sec:perf-prop>).#footnote[The work also exposed a defect that is inherited from the reference code of APD-MVS: when all selected views of a pixel have a weight of zero (#_clp(_clc.wn0_share_pct, 1) of the pixels), `DepthToWeak` divides by zero. Such a pixel is now labeled unreliable explicitly.] // src: data/kern-c3chain-vs-5cf8608.csv; data/ablation.csv (rows 8-bit to fix-d2w: span; rows C1, C9, C3: md5_eq_prev, native, seeds 1-3), ablation-f1.csv (rows C2, K13 at 2cm, five seeds: [-0.0002, +0.0002] and [-0.0002, +0.0003]); cards C2.md §4, K13.md §4, C3.md §4; acceptance.md (Tier 1, +-0.003 at 2 cm); defect: .dev/findings/classification-sweep-m5.md item 2, data/counters-5cf8608-native-s1.csv (wn0_px / swept_px), upstream APD.cu:2052, :2082-2083 against the guard at :2195 at b105b0b, fix 1ecaf34

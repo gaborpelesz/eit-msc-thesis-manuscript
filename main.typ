@@ -123,7 +123,7 @@ should answer the RQs directly, say what the work can't claim and list of future
 
 // Appendices (optional)
 #show: appendix
-// #include "chapters/<appendix>.typ"
+#include "chapters/appendix_ablation.typ"
 
 // Bibliography (mandatory)
 #bibliography("thesis.bib")

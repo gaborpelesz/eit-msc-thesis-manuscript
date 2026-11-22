@@ -714,6 +714,17 @@ def numbers_anchor(anc, sr):
     put("spokes.shift_ranges_coarse", [8, 3], "thesis-4.3/stage-anchor/cards/K3.md section 1 (shift_range 8 and 3 in the two coarsest rounds)")
     put("spokes.fine_rounds", [3, 4], "thesis-4.3/stage-anchor/cards/K3.md section 1 (rounds i = 2, 3 of the code: the two finest; numbered from 1 here)")
     put("spokes.cone_deg", 11.25, "thesis-4.3/stage-anchor/analysis.md \"Terms\" (11.25 degree cone)")
+    # The spoke search per round that has unreliable pixels (rounds numbered from 1; the survey's
+    # "scale 2, 1, 0"). Counters are means per unreliable pixel over all passes of the round, from
+    # the instrumented build perf-instr-5cb2c17 (run perf-instr-r1, seed 1, on the unfixed base).
+    instr = "profiles/instr-counters.md section (f) (GenNeighbours per WEAK pixel, state *; scale 2, 1, 0)"
+    put("spokes.per_round.rounds", [2, 3, 4], "profiles/instr-counters.md (scale 2, 1, 0 = round index 1, 2, 3 of run.cpp; numbered from 1 here)")
+    put("spokes.per_round.spokes", [16, 32, 32], "profiles/static-kernels.md section 3 (8 base directions x rotate_time 2, 4, 4)")
+    put("spokes.per_round.spacing_deg", [22.5, 11.25, 11.25], "profiles/static-kernels.md section 3 (angle = 45 degrees / rotate_time)")
+    put("spokes.per_round.shift_range", [3, 1, 1], "thesis-4.3/stage-anchor/cards/K3.md section 1 (shift_range = max((int)(tan(angle / 2) * 20), 1))")
+    put("spokes.per_round.steps", [70.0, 184.0, 240.3], f"{instr}: radius steps mean")
+    put("spokes.per_round.tries", [237.6, 645.1, 869.1], f"{instr}: tries mean")
+    put("spokes.per_round.found", [14.8, 30.2, 30.7], f"{instr}: dirs found mean")
     put("ransac.iterations", 50, "thesis-4.3/stage-anchor/analysis.md \"Terms\" (50-iteration RANSAC)")
     put("anchors.kept", 8, "thesis-4.3/stage-anchor/analysis.md \"Terms\" (8 anchors)")
     put("sort.moves", 250, "thesis-4.3/stage-anchor/cards/GN-L.md section 3 (about n^2/4 = 250 element moves)")
