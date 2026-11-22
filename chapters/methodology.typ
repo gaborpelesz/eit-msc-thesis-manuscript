@@ -216,11 +216,11 @@ The quality is measured at 1, 2, 5, 10, 20 cm radius evaluation thresholds, with
 
 The system thoroughly measures each execution through a diverse set of runtime metrics. It measures the algorithm timings in depth through an injected timer tool, discussed in #ref(<bench-system>). Conveniently, the stages that the algorithm implementations define are nearly identical. These shared stages give the thesis an ability to conduct a fine-grained comparison analyses (section xxx #todo[refer to benchmark analysis in results]). #ref(<table-timing-measurements>) shows a comprehensive overview of all the timing measurements.
 
-#timing-table
+#place(auto, float: true, clearance: 22pt, timing-table)
 
 Resource utilization is also measured, including host RAM, disk I/O, CPU and GPU utilization, among other more granular metrics.
 
-#resource-table
+#place(auto, float: true, clearance: 22pt, resource-table)
 
 
 ==== Algorithm free-parameters
@@ -567,7 +567,7 @@ In total, input preprocessing, initialization kernel, propagation, and finalizat
 
 #kernel-breakdown-table
 
-== CUMVS(APD) performance optimizations
+== CUMVS(APD) performance optimizations <sec:perf>
 
 This section describes the changes made to the original APD-MVS implementation to showcase some performance improvements that are simple yet effective. The work focuses on all four main contributors: the input loading, the anchor search, the propagation, and the finalization steps. As a result, the changes improvements together achieve 2x over the original implementation with zero or negligible effect on the quality.
 
