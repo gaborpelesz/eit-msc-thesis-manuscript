@@ -122,7 +122,7 @@
 ) <table-resource-measurements>]
 
 
-= Methodology
+= Methodology <ch-methodology>
 
 /*
 types of research methodologies:

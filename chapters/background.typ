@@ -2,7 +2,7 @@
 #import "figures/parallax.typ": parallax-figure
 #import "figures/epipolar.typ": epipolar-figure
 
-= Background
+= Background <ch-background>
 
 // | Background (MVS, PatchMatch, GPU model, ETH3D metrics) | 7 |
 

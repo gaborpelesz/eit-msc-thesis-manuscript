@@ -80,7 +80,7 @@
   placement: auto,
 ) <fig-lineage>]
 
-= Literature review
+= Literature review <ch-litreview>
 
 This chapter describes the PatchMatch lineage of MVS algorithms that followed Gipuma @gipuma, COLMAP @colmap_mvs, and ACMH @acmh_acmm. The lineage is a set of MVS algorithms that build directly on top of these foundational methods, including references to them as baselines in their paper, refining these approaches, providing ablation studies, and by descending directly from their open-source implementations.
 
