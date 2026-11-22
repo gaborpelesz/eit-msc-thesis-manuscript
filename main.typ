@@ -20,11 +20,11 @@
   year: [2026], // year of defense
 
   // Author's metadata
-  author: [Gabor Pelesz],
+  author: [Gábor Pelesz],
   degree: [Autonomous Systems MSc],
 
   // Supervisor(s)' metadata
-  supervisor: [Adam Istvan Szucs], // internal supervisor's name
+  supervisor: [Ádám István Szűcs], // internal supervisor's name
   affiliation: [[SUPERVISOR AFFILIATION]], // internal supervisor's affiliation
   // ext-supervisor: [[EXTERNAL SUPERVISOR NAME]], // external supervisor's name
   // ext-affiliation: [[EXTERNAL SUPERVISOR AFFILIATION]], // external supervisor's affiliation
