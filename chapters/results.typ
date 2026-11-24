@@ -127,11 +127,13 @@ CUMVS(APD) \@ 3200 has no APD-MVS counterpart, as no binary runs APD-MVS's algor
 #let _x = O.s43_vs_bench
 In #ref(<sec:perf>), the optimizations made CUMVS(APD) #times(_x.pipes_s43_x, 2) faster on _pipes_ and #times(_x.office_s43_x, 2) on _office_, against the fixed base of #ref(<sec:perf>) (the integration with the upscaling fix, before the optimizations), in analysis runs on an RTX 5070 Ti with unlocked clocks. The benchmark measures CUMVS(APD) against the original APD-MVS, on the RTX 5070 of #ref(<bench-system>) at the held clock: #times(O.speedup.mean, 2) over the #B.n_scenes scenes, #times(_x.pipes_bench_x, 2) on _pipes_ and #times(_x.office_bench_x, 2) on _office_. The two run sets differ in card, clock and baseline, and their numbers are not combined. Both show the speedup of #ref(<sec:perf>): the halving found on two scenes holds on all #B.n_scenes, including the #spell(B.n_scenes - 2) that the optimizations were never run on. // src: v.ours.s43_vs_bench (perf43 pipes.span, office.span; per-scene ratios of cell means); v.ours.x_min, x_max
 
+/*
 == CUMVS(APD)
 
 - Notice, that there are many more micro-optimizations that was not implemented, such as parallel filling of the plane buffer. The goal of the thesis is to remain focused on times that matter, and provide minimal changes to achieve significant results on the overall runtime. The missed optimization opportunities show that there is still room for improvements.
 
 - Nowadays, traditional MVS algorithms are popular over learned methods due their superior accuracy stemming from strong multi-view geometry constraints. This thesis shows, that these methods can also come with promising runtime performance if small care is taken about their implementation. The modern MVS algorithms seem much slower than they are, and optimizations are targeting algorithmic behavior rather than exploring implementation options.
+*/
 
 // put the full benchmark result tables in the appendix
 
