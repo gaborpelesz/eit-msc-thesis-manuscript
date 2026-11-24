@@ -1,5 +1,6 @@
 #import "../template/elteikthesis.typ": *
 #import "figures/bench-common.typ": *
+#import "figures/bench-main.typ": bench-main-table
 
 #let B = bench
 #let _f(key) = arm(key).f1_2cm
@@ -7,129 +8,75 @@
 #let _sh(key, c) = arm(key).share.at(c)
 #let _st = B.front_steps
 #let _nb = B.native_vs_best_capped
+#let O = B.ours
 
 = Results & Discussion <ch-results>
 
+The final benchmark evaluates the 10 selected methods and CUMVS(APD) with the protocol described in #ref(<sec:benchmark-dimensioning>). The benchmark includes all ETH3D training scenes with five repeats per method to ensure statistical significance. CUMVS(APD) was included at two resolutions, once capped at 3200px maximum image width, the setting that most methods use (_CUMVS(APD) @ 3200px_), and once at native resolution (_CUMVS(APD) @ native_) for comparison with it's baseline, APD-MVS. During benchmarking, a total of 780 runs were carried out, of which 735 succeeded. The 45 failures are all HPM-MVS++ runs, caused by reaching the memory limit of the GPU (#ref(<sec:bench-resources>)). All per-scene values show the mean of the five repeats, unless stated otherwise. HPM-MVS++ completed only four scenes (_meadow_, _office_, _pipes_, _terrace_) and therefore it is compared on those scenes only. #ref(<table-bench-main>) collects the headline numbers of this section. @
 
+#place(auto, float: true, clearance: 22pt, bench-main-table)
 
-/*
-3. Can a systematically engineered, production-grade reimplementation of a recent state-of-the-art method recover a substantial fraction of the runtime and memory cost while preserving its benchmark accuracy?
-  - can we find a single change in a lineage shared kernel part (for example in the ACM family) that if we improve, it would improve the perf of all lineage items?
-
-== Preparing for the benchmarking, Findings
-1. all nine methods (ACM-family, two HPM, APD, DPE) ship converters that look for `.jpg` images in a case-sensitive manner while ETH3D downloaded images are `*.JPG` with upper-case. Because of this, the converter decodes and re-encodes every image using OpenCV's default JPEG quality, 95. The re-encode changes 46-59% of pixels at 46-50 dB PSNR.
-  - CUMVS reads original images and it doesn't re-encode
-*/
-
-== Benchmarking <sec:bench-results>
-
-The final benchmark ran the #B.n_methods measured methods with the protocol of #ref(<sec:benchmark-dimensioning>) on the #B.n_scenes ETH3D training scenes with #spell(B.n_rep) repeats each. A total of #B.n_runs runs were carried out, of which #B.n_ok succeeded. The #B.n_failed failures are all HPM-MVS++ runs from the same cause, and are analyzed in #ref(<sec:bench-resources>). A per-scene value is the mean of the #spell(B.n_rep) repeats of its cell. A value over the #B.n_scenes scenes, the mean F1 or the total runtime, is computed for each repeat index and given as the mean of the #spell(B.n_rep) values with the #B.ci_level_pct% interval of #ref(<eq-ci>) ($n = #B.n_rep$). HPM-MVS++ completed only #spell(B.common_scenes.len()) scenes (#scene(B.common_scenes.join(", "))) and is therefore it is compared on those scenes only and left out of every #(B.n_scenes)-scene value. #ref(<table-bench-main>) collects the headline numbers of this section. // src: bench_json.py docstring; v.common_scenes; v.partial
-
-// The best value of each column is set in bold, compared at the printed precision so that ties are
-// all bold: the largest for F1, accuracy and completeness, the smallest for the others.
-#let _main_keys = (k.acmh, k.acmp, k.acmm, k.acmmp, k.mp, k.hpm, k.cumvs, k.ours3200, k.apd, k.dpe, k.oursnat)
-#let _main_cols = (
-  f1:   (a => a.f1_2cm.mean, 3, calc.max),
-  acc:  (a => a.acc_2cm.mean, 3, calc.max),
-  comp: (a => a.comp_2cm.mean, 3, calc.max),
-  time: (a => a.wall_total_s.mean, 0, calc.min),
-  x:    (a => a.x_cumvs, 1, calc.min),
-  mem:  (a => a.peak_dev_mib, 0, calc.min),
-  kj:   (a => a.energy_total_kj, 0, calc.min),
-)
-#let _best = {
-  let present = _main_keys.filter(has)
-  for (c, (get, d, pick)) in _main_cols {
-    ((c): pick(..present.map(key => calc.round(get(arm(key)), digits: d))))
-  }
-}
-#let _b(a, c, body) = {
-  let (get, d, _) = _main_cols.at(c)
-  if calc.round(get(a), digits: d) == _best.at(c) { strong(body) } else { body }
-}
-#let _row(key) = if has(key) {
-  let a = arm(key)
-  (lab(key), _b(a, "f1", fix(a.f1_2cm.mean, 3)), _b(a, "acc", fix(a.acc_2cm.mean, 3)), _b(a, "comp", fix(a.comp_2cm.mean, 3)),
-   _b(a, "time", [#big(a.wall_total_s.mean) #hw(a.wall_total_s, 0)]), _b(a, "x", times(a.x_cumvs, 1)),
-   _b(a, "mem", big(a.peak_dev_mib)), _b(a, "kj", big(a.energy_total_kj)))
-} else {
-  (lab(key), table.cell(colspan: 7, align: center, text(fill: luma(45%), style: "italic")[pending (M8)]))
-}
-#figure(
-  kind: table,
-  caption: flex-caption([
-    Headline results per method over the #B.n_scenes scenes. F1-score, accuracy, and completeness are averaged at 2~cm, the total runtime is the method time summed over the scenes (converter excluded), with the half-width of its #B.ci_level_pct% confidence interval. Peak device memory is the largest over all runs; GPU energy is summed over the scenes.
-  ], [Headline benchmark results per method]),
-  {
-    set text(size: 8.5pt)
-    set par(justify: false, leading: 0.5em)
-    table(
-      columns: (auto, auto, auto, auto, auto, auto, auto, auto),
-      align: (left, right, right, right, right, right, right, right),
-      stroke: none,
-      inset: (x: 4pt, y: 3pt),
-      table.hline(stroke: 0.8pt),
-      table.header([*Method*], [*F1*], [*Acc.*], [*Comp.*], [*Time (s)*], [*Time #sym.times baseline (CUMVS)*], [*Peak GPU mem. (MiB)*], [*Energy (kJ)*]),
-      table.hline(stroke: 0.5pt),
-      table.cell(colspan: 8, inset: (top: 5pt, bottom: 2pt), emph[Capped at 3200 px]),
-      .._row(k.acmh), .._row(k.acmp), .._row(k.acmm), .._row(k.acmmp), .._row(k.mp), .._row(k.hpm), .._row(k.cumvs), .._row(k.ours3200),
-      table.cell(colspan: 8, inset: (top: 5pt, bottom: 2pt), emph[Native resolution]),
-      .._row(k.apd), .._row(k.dpe), .._row(k.oursnat),
-      table.hline(stroke: 0.8pt),
-    )
-  },
-) <table-bench-main>
-// src (the whole table): v.arms.<key>.{f1_2cm, acc_2cm, comp_2cm, wall_total_s, x_cumvs, peak_dev_mib, energy_total_kj} (runs.csv, ok runs)
-
-=== Reconstruction quality <sec:bench-quality>
+== Reconstruction quality <sec:bench-quality>
 
 #let _r = B.rank_2cm
-From the benchmark perspective, DPE-MVS reconstructs best and it ranks first on #B.first_count.at(k.dpe) of the #B.n_scenes scenes with a mean F1 of #fix(_f(k.dpe).mean, 3) at 2~cm. APD-MVS is the next with #fix(_f(k.apd).mean, 3). It is important to note, that they are the two lineage algorithms running at native resolution. The best 3200~px capped method is #lab(B.best_capped), with #fix(_f(B.best_capped).mean, 3). ACMH, the first algorithm in the lineage, is last with #fix(_f(k.acmh).mean, 3) (#ref(<table-bench-main>)) as expected due to not having all the quality machinary that other algorithms introduce. On the #spell(B.common_scenes.len()) scenes that HPM-MVS++ completed, its F1 of #fix(AC.at(k.hpmpp).f1_2cm.mean, 3) lies between APD-MVS (#fix(AC.at(k.apd).f1_2cm.mean, 3)) and MP-MVS (#fix(AC.at(k.mp).f1_2cm.mean, 3)).
+DPE-MVS performs the best on the benchmark and it ranks first on #B.first_count.at(k.dpe) of the #B.n_scenes scenes with a mean F1-score of #fix(_f(k.dpe).mean, 3) at 2~cm. CUMVS(APD) \@ native and APD-MVS are next with #fix(_f(k.oursnat).mean, 3) and #fix(_f(k.apd).mean, 3), and are compared in #ref(<sec:bench-cumvs-apd>). It is important to note, that these three methods run at native resolution giving them an unfair advantage due to having access to four times as much pixel information. The best quality capped method is #lab(B.best_capped), with #fix(_f(B.best_capped).mean, 3) F1-score at 2~cm. ACMH, the initial algorithm in the lineage, is last with an F1-score of #fix(_f(k.acmh).mean, 3) (#ref(<table-bench-main>)). This is expected due to not having all the compute heavy completeness machinery that other algorithms introduced. ACMH is the best performing in accuracy, likely because it only keeps candidates that it truly trusts through strong photometric constraints, meanwhile lacking concepts like planar priors that would let it estimate points on textureless surfaces at a much lower accuracy. On the #spell(B.common_scenes.len()) scenes that HPM-MVS++ completed, its F1 of #fix(AC.at(k.hpmpp).f1_2cm.mean, 3) lies between #lab(B.hpmpp_common_above.last()) (#fix(AC.at(B.hpmpp_common_above.last()).f1_2cm.mean, 3)) and #lab(B.hpmpp_common_below_next) (#fix(AC.at(B.hpmpp_common_below_next).f1_2cm.mean, 3)). Therefore, HPM-MVS++ is likely an equivalent or better performing capped candidate than MP-MVS, would it have finished all of it's scenes (see the detailed results in #ref(<app-bench>)). // src: v.rank_2cm; v.arms.*.f1_2cm; v.arms_common.*.f1_2cm, v.hpmpp_common_above, v.hpmpp_common_below_next
+#assert(_r.at(0) == k.dpe and _r.at(1) == k.oursnat and _r.at(2) == k.apd, message: "the order of the three native runs changed: rewrite the paragraph")
 
-#todo[3200px projections for APD-MVS, how would it perform approximately on quality?]
+The quality improvements along the lineage come in the form of completeness (#ref(<lit:acmh>)). Over lineage methods, 3200~px capped completeness ranges from #fix(B.lineage_comp_range.first(), 3) (ACMH) to #fix(B.lineage_comp_range.last(), 3) (MP-MVS), while accuracy stays between #fix(B.lineage_acc_range.first(), 3) and #fix(B.lineage_acc_range.last(), 3). The native runs trade accuracy for completeness: the accuracy of APD-MVS (#fix(arm(k.apd).acc_2cm.mean, 3)), and DPE-MVS (#fix(arm(k.dpe).acc_2cm.mean, 3)) is below that of every capped lineage method with a #(B.n_scenes)-scene value, and their completeness, #fix(arm(k.apd).comp_2cm.mean, 3), #fix(arm(k.dpe).comp_2cm.mean, 3) and #fix(arm(k.oursnat).comp_2cm.mean, 3), is the highest. Through CUMVS(APD) \@ 3200, the benchmark can observe the performance of APD-MVS's algorithm capped and compare it directly to other methods. At capped image width, it reaches a mean F1-score of #fix(_f(k.ours3200).mean, 3), #fix(-O.c3200_d_f1_on_pp.at("2cm"), 1)~pp below its native run and #ordinal(O.c3200_rank_capped) among the #spell(O.c3200_n_capped) capped methods (#ref(<sec:bench-cumvs-apd>)). The accuracy and completeness of CUMVS(APD) @ 3200 compared to its native verifies that accuracy is being traded for completeness at least with using default settings. This gap was measured for one algorithm only on only one such setting, and it may not carry over to the other methods of the lineage. If it does, part of the difference between the methods evaluated at native resolution @apd @dpe and those capped at 3200~px comes from the input size and not from the algorithm itself. Reporting the input resolution with the results, and comparing methods at the same resolution where possible, would separate the two effects.
+// src: v.ours.c3200_d_f1_on_pp, c3200_rank_capped, c3200_n_capped
+#assert(O.c3200_d_f1_on_pp.at("2cm") < 0)
+/*
+it wasn't proven, but more accurate anchor points lead to more accurate plain fitting over textureless planar surfaces. This can improve the overall accuracy significantly, while
+*/
 
-The quality improvements along the lineage come in the form of completeness (#ref(<lit:acmh>)). Over lineage methods, 3200~px capped completeness ranges from #fix(B.lineage_comp_range.first(), 3) (ACMH) to #fix(B.lineage_comp_range.last(), 3) (MP-MVS), while accuracy stays between #fix(B.lineage_acc_range.first(), 3) and #fix(B.lineage_acc_range.last(), 3). APD-MVS and DPE-MVS trade accuracy for completeness: their accuracy, #fix(arm(k.apd).acc_2cm.mean, 3) and #fix(arm(k.dpe).acc_2cm.mean, 3), is below that of every capped lineage method with a #(B.n_scenes)-scene value, and their completeness, #fix(arm(k.apd).comp_2cm.mean, 3) and #fix(arm(k.dpe).comp_2cm.mean, 3), is the highest.
+#assert(B.native_acc_below_lineage and B.native_comp_top)
 
 #bench-figure("bench-scenes",
-  [F1 at 2~cm per scene and arm, mean of #spell(B.n_rep) repeats; the best arm of each scene in bold. Scenes from the lowest mean F1 over the arms (top) to the highest, with their number of images. Hatched: no successful run (HPM-MVS++, #ref(<sec:bench-resources>)).],
-  [F1 at 2 cm per scene and arm], "fig-bench-scenes")
+  [F1 at 2~cm per scene and method, mean of #spell(B.n_rep) repeats; the best method of each scene in bold. Scenes from the lowest mean F1 over the methods (top) to the highest, with their number of images. Hatched: no successful run (HPM-MVS++, #ref(<sec:bench-resources>)).],
+  [F1 at 2 cm per scene and method], "fig-bench-scenes")
 
-=== Runtime and the quality-time trade-off <sec:bench-time>
+== Runtime and the quality-time trade-off <sec:bench-time>
 
-Runtime spans almost two orders of magnitude (#ref(<table-bench-main>)) due to the different resolution caps. The capped methods take #big(B.capped_total_range_s.first())~s (#lab(B.capped_fastest)) to #big(B.capped_total_range_s.last())~s (#lab(B.capped_slowest)), while APD-MVS takes #big(_t(k.apd).mean)~s (#hours(_t(k.apd).mean, 1)) and DPE-MVS #big(_t(k.dpe).mean)~s (#hours(_t(k.dpe).mean, 1)) to complete all scenes. The native resolution is the choice of the APD-MVS and DPE-MVS authors, with small quality improvements at a significantly higher compute cost #todo[here our 3200px capped APD result will be interesting. It will show how much is the improvement over quality for going native]
+Runtime spans almost two orders of magnitude (#ref(<table-bench-main>)) due to the different resolution caps. The capped methods take #big(B.capped_total_range_s.first())~s (#lab(B.capped_fastest)) to #big(B.capped_total_range_s.last())~s (#lab(B.capped_slowest)), while at native resolution CUMVS(APD) takes #big(_t(k.oursnat).mean)~s (#hours(_t(k.oursnat).mean, 1)), APD-MVS #big(_t(k.apd).mean)~s (#hours(_t(k.apd).mean, 1)) and DPE-MVS #big(_t(k.dpe).mean)~s (#hours(_t(k.dpe).mean, 1)) to complete all scenes. The native resolution is the choice of the APD-MVS and DPE-MVS authors, with completeness improvements at a significantly higher compute cost. For APD-MVS's algorithm the benchmark measures this trade directly: CUMVS(APD) \@ 3200 is more than four times faster than CUMVS(APD) \@ native and loses #fix(-O.c3200_d_f1_on_pp.at("2cm"), 1) percentage points of F1-score at 2~cm (#ref(<sec:bench-cumvs-apd>)). // src: v.ours.c3200_x_on, c3200_d_f1_on_pp
 
-Time is linear in the number of images: per method, the per-scene runtime correlates with it at $r = #fix(B.lin_r_range.first(), 2)$ to $#fix(B.lin_r_range.last(), 2)$, and the slope is #fix(arm(k.cumvs).s_per_image, 1)~s per image for CUMVS, #fix(arm(k.acmh).s_per_image, 1)~s for ACMH, #fix(arm(k.mp).s_per_image, 1)~s for MP-MVS, #fix(arm(k.apd).s_per_image, 0)~s for APD-MVS and #fix(arm(k.dpe).s_per_image, 0)~s for DPE-MVS. The most expensive scene of every method is _facade_, with #B.n_images.facade images (#ref(<table-bench-scene-time>)). // src: v.lin_r_range, v.arms.*.s_per_image (linear fit of cell means on n_images), v.facade_slowest_all
-The converters, which the runtime excludes, add #fix(B.convert_python_range_s.first(), 0) to #fix(B.convert_python_range_s.last(), 0)~s over the #B.n_scenes scenes to each Python-converter method, #fix(arm(k.apd).convert_total_s, 0)~s to APD-MVS and DPE-MVS and #fix(arm(k.cumvs).convert_total_s, 1)~s to CUMVS (converter time in #ref(<table-timing-measurements>)).
+There is a strong correlation (0.96-0.98) between the number of images per method and their per-scene runtimes. The slope is #fix(arm(k.cumvs).s_per_image, 1)~s per image for CUMVS, #fix(arm(k.acmh).s_per_image, 1)~s for ACMH, #fix(arm(k.mp).s_per_image, 1)~s for MP-MVS, #fix(arm(k.oursnat).s_per_image, 0)~s for CUMVS(APD) \@ native, #fix(arm(k.apd).s_per_image, 0)~s for APD-MVS and #fix(arm(k.dpe).s_per_image, 0)~s for DPE-MVS. The most expensive scene of every method is _facade_, with #B.n_images.facade images (#ref(<table-bench-scene-time>)). // src: v.lin_r_range, v.arms.*.s_per_image (linear fit of cell means on n_images), v.facade_slowest_all
+The format converters (which the runtime excludes) add #fix(B.convert_python_range_s.first(), 0)-#fix(arm(k.apd).convert_total_s, 0)~s over the #B.n_scenes scenes to each method with the default Python converter, and only #fix(arm(k.cumvs).convert_total_s, 1)-#fix(arm(k.oursnat).convert_total_s, 1)~s to CUMVS and CUMVS(APD) run, which uses CUMVS's converter (#todo[reference the section that introduces the converter, at the time of writing, converter was never introduced]).
 #assert(B.facade_slowest_all)
 #assert(B.power_max == B.energy_min and arm(k.acmm).input_load_s > 3 * _t(k.cumvs).mean, message: "premise of the energy or input-loading sentence changed")
 
-Cost does not grow monotonically with quality. MP-MVS is faster than ACMM, ACMMP and HPM-MVS and reconstructs better than all three. MP-MVS takes #pct(1 - _t(k.mp).mean / _t(k.acmmp).mean, 0) less time than ACMMP, confirming their claim @mp_mvs. CUMVS reimplementation of ACMM, is #times(arm(k.acmh).x_cumvs, 1) faster than ACMH and #times(arm(k.acmm).x_cumvs, 1) faster than ACMM, with a higher F1 than both. The results reproduce the CUMVS claims exactly @fixstars2025cumvs#footnote[If CUMVS hardware claims are also correct, a further observation is that the NVidia 5070 GPU performs an overall 34% better than NVidia 3080 GPU.].
+Cost does not grow monotonically with quality. MP-MVS is faster and reconstructs better according to the benchmark than ACMM, ACMMP, and HPM-MVS. MP-MVS takes #pct(1 - _t(k.mp).mean / _t(k.acmmp).mean, 0) less time than ACMMP, that confirms the stated speedup @mp_mvs. CUMVS reimplementation of ACMM, is #times(arm(k.acmh).x_cumvs, 1) faster than ACMH and #times(arm(k.acmm).x_cumvs, 1) faster than ACMM, with a higher F1 than both. The results reproduce the CUMVS claims exactly @fixstars2025cumvs#footnote[If CUMVS hardware claims are also correct, a further observation is that the NVidia 5070 GPU performs an overall 34% better than NVidia 3080 GPU.].
 
 #bench-figure("bench-tradeoff",
-  [Mean F1 at 2~cm against the total runtime over the #B.n_scenes scenes (log scale), with #B.ci_level_pct% intervals (mostly smaller than the markers). Filled markers lie on the Pareto front. HPM-MVS++ is not shown. The CUMVS(APD) arms are added in #ref(<sec:bench-cumvs-apd>).],
+  [Mean F1 at 2~cm against the total runtime over the #B.n_scenes scenes (log scale), with #B.ci_level_pct% intervals (smaller than the markers). Filled markers lie on the Pareto front. HPM-MVS++ is not shown.],
   [Quality against runtime], "fig-bench-tradeoff")
 
-#todo[talk about #ref(<fig-bench-tradeoff>) when APD-MVS results are in]TODO
+#ref(<fig-bench-tradeoff>) puts quality against runtime. At 2~cm the Pareto front is #B.front.map(lab).join[ #sym.arrow.r ] (same at 1~cm #todo[reference the appendix 1cm table]). Its steps are #signed(_st.at(0).d_f1_pp, 1)~pp for #times(_st.at(0).x_time, 1) the time from #lab(_st.at(0).a) to #lab(_st.at(0).b), #signed(_st.at(1).d_f1_pp, 2)~pp for #times(_st.at(1).x_time, 1) to #lab(_st.at(1).b), and #signed(_st.at(2).d_f1_pp, 2)~pp for #times(_st.at(2).x_time, 1) to #lab(_st.at(2).b). // src: v.front, v.front_by_tol, v.front_steps
+CUMVS(APD) \@ native takes the place of APD-MVS on the front: it reconstructs as well in #pct(O.time_share, 0) of the time. #lab(k.cumvs) dominates #labs(B.dominated_by.keys().filter(a => B.dominated_by.at(a).contains(k.cumvs))), and #lab(k.mp) dominates #labs(B.dominated_by.keys().filter(a => B.dominated_by.at(a).contains(k.mp))): each of these is slower and reconstructs worse. // src: v.dominated_by (APD-MVS: [production-apd-mvs@native])
 
+At coarser tolerances the front changes. From 5~cm on, the F1 of CUMVS(APD) \@ 3200 is above that of MP-MVS and the method joins the front; at 5 and 10~cm, where CUMVS(APD) \@ native and APD-MVS are not resolved, APD-MVS is on it as well; at 20~cm, CUMVS(APD) \@ 3200 reconstructs better than both, and only DPE-MVS is above it. On its #spell(B.common_scenes.len()) scenes, HPM-MVS++ joins the 2~cm front between #lab(B.hpmpp_front_between.first()) and #lab(B.hpmpp_front_between.last()). // src: v.front_by_tol, v.ours.c3200_on_front_tols, v.ours.apd_on_front_tols, v.ours.d_f1_13 (5-20 cm intervals contain 0), v.ours.c3200_d_f1_mp_pp, v.ours.c3200_d_f1_on_pp; v.front_common, v.hpmpp_front_between
+#assert(B.front_by_tol.at("1cm") == B.front and B.front.len() == 4 and B.front.contains(k.oursnat) and B.dominated_by.at(k.apd) == (k.oursnat,) and B.front_common.contains(k.hpmpp), message: "the 2 cm front changed: rewrite the paragraph")
+#assert(O.c3200_on_front_tols == ("5cm", "10cm", "20cm") and O.apd_on_front_tols == ("5cm", "10cm") and not B.front_by_tol.at("20cm").contains(k.oursnat) and B.front_by_tol.at("20cm").contains(k.dpe), message: "the front at coarse tolerances changed")
+Two of the four points of the 2~cm front are production implementations, CUMVS at the fast end and CUMVS(APD) \@ native. Between them, the front is set by an implementation that is faster than the methods it dominates.
 
-=== Runtime breakdown <sec:bench-phases>
+== Runtime breakdown <sec:bench-phases>
 
 The phase timers of #ref(<table-timing-measurements>) split each method's runtime into the classes of #ref(<fig-bench-phases>)a. The methods fall into two groups. The four ACM methods are host-bound: the GPU is idle for #pct(B.acm4_idle_range.first(), 0) to #pct(B.acm4_idle_range.last(), 0) of their runtime, and input loading alone takes #pct(B.acm4_input_range.first(), 0) to #pct(B.acm4_input_range.last(), 0), the largest share of all phases for ACMM (#pct(_sh(k.acmm, "input_load"), 0)) and ACMMP (#pct(_sh(k.acmmp, "input_load"), 0)). ACMM loads every image #B.acmm_loads_per_image times, so a run on _pipes_ with its #B.n_images.pipes images has #B.acmm_pipes_input_load_spans input-loading spans; over the #B.n_scenes scenes, its input loading takes #big(arm(k.acmm).input_load_s)~s, more than three times the whole runtime of CUMVS (#big(_t(k.cumvs).mean)~s). // src: v.acm4_idle_range, v.acm4_input_range, v.arms.*.share.input_load (phase-categories.csv, self_s / wall); v.acmm_loads_per_image, v.acmm_pipes_input_load_spans (phases.csv input_load count / n_images)
-MP-MVS and HPM-MVS keep the GPU busier, with #pct(arm(k.mp).gpu_idle_share, 0) and #pct(arm(k.hpm).gpu_idle_share, 0) idle time. APD-MVS and DPE-MVS are GPU-bound: PatchMatch takes #pct(_sh(k.apd, "patchmatch"), 1) and #pct(_sh(k.dpe, "patchmatch"), 1) of their runtime and the GPU is idle for #pct(arm(k.apd).gpu_idle_share, 1) and #pct(arm(k.dpe).gpu_idle_share, 1). CUMVS spends #pct(_sh(k.cumvs, "input_load"), 1) of its runtime on input loading, which is the clearest evidence that this host share is implementation, and #pct(_sh(k.cumvs, "write"), 1) on writing the point cloud, with #pct(arm(k.cumvs).gpu_idle_share, 0) GPU idle. #ref(<table-bench-phase-seconds>) gives the phase classes in seconds, and #ref(<table-bench-acmm-cumvs>) compares ACMM with CUMVS class by class. // src: v.arms.*.gpu_idle_share (telemetry gpu_idle_share, time weighted), v.arms.*.share
+MP-MVS and HPM-MVS seemingly keep the GPU busier but their time spent on input loading relative to the number of per image passes is equivalent to that of ACMP, ACMM, or ACMMP. This is due to the shared lineage code, handling inputs the same way. APD-MVS and DPE-MVS are GPU-bound: PatchMatch takes #pct(_sh(k.apd, "patchmatch"), 1) and #pct(_sh(k.dpe, "patchmatch"), 1) of their runtime and the GPU is idle for #pct(arm(k.apd).gpu_idle_share, 1) and #pct(arm(k.dpe).gpu_idle_share, 1). So are the two CUMVS(APD) runs, with PatchMatch at #pct(_sh(k.ours3200, "patchmatch"), 0) and #pct(_sh(k.oursnat, "patchmatch"), 0) and the GPU idle for #pct(arm(k.ours3200).gpu_idle_share, 1) and #pct(arm(k.oursnat).gpu_idle_share, 1) of the runtime. CUMVS spends #pct(_sh(k.cumvs, "input_load"), 1) of its runtime on input loading, which is the clearest evidence that this host share is implementation, and #pct(_sh(k.cumvs, "write"), 1) on writing the point cloud, with #pct(arm(k.cumvs).gpu_idle_share, 0) GPU idle. The same shows in the one algorithm that was measured in two implementations: input loading takes #pct(_sh(k.apd, "input_load"), 1) of the runtime of APD-MVS and #pct(_sh(k.oursnat, "input_load"), 1) of that of CUMVS(APD) \@ native. #ref(<table-bench-phase-seconds>) gives the phase classes in seconds, and #ref(<table-bench-acmm-cumvs>) compares ACMM with CUMVS class by class. // src: v.arms.*.gpu_idle_share (telemetry gpu_idle_share, time weighted), v.arms.*.share
 
 #bench-figure("bench-phases",
-  [Where the time goes. (a) Share of each arm's runtime per phase class, from the phase timers (self time, summed over the scenes), with the share of time the GPU was idle (driver utilization zero, sampled at 2~Hz) as a tick on the same axis. Classes and the phases of #ref(<table-timing-measurements>): input loading (`input_load`), host-device transfers (`device_upload`, `patchmatch.readback`, `result_readback`), PatchMatch (`patchmatch`), priors and auxiliary passes (`prior_build`, `edge_prior`, `confidence_eval`, `upsample`, which differ by method), fusion (`fusion`), writing (`depthmap_write`, `output_write`), other (setup, loop overhead, untimed). HPM-MVS++ on its #spell(B.common_scenes.len()) scenes. (b) GPU-idle share against the share of runtime outside PatchMatch, one point per arm that completed all scenes; dashed: equality.],
-  [Where the runtime goes, per arm], "fig-bench-phases")
+  [Where the time goes. (a) Share of each method's runtime per phase class, from the phase timers (self time, summed over the scenes), with the share of time the GPU was idle (driver utilization zero, sampled at 2~Hz) as a tick on the same axis. Classes and the phases of #ref(<table-timing-measurements>): input loading (`input_load`), host-device transfers (`device_upload`, `patchmatch.readback`, `result_readback`), PatchMatch (`patchmatch`), priors and auxiliary passes (`prior_build`, `edge_prior`, `confidence_eval`, `upsample`, which differ by method), fusion (`fusion`), writing (`depthmap_write`, `output_write`), other (setup, loop overhead, untimed). HPM-MVS++ on its #spell(B.common_scenes.len()) scenes. (b) GPU-idle share against the share of runtime outside PatchMatch, one point per method that completed all scenes; dashed: equality.],
+  [Where the runtime goes, per method], "fig-bench-phases")
 
 Fusion is the other large phase of the ACM methods: it takes #pct(_sh(k.acmh, "fusion"), 0) of the runtime of ACMH, its largest phase, and #pct(_sh(k.acmp, "fusion"), 0) of ACMP. // src: v.arms.*.share.fusion
 
-Host-boundedness is measured twice, by the driver's utilization counter and by the phase timers, and the two agree across the methods (#ref(<fig-bench-phases>)b): over the #B.idle_vs_outside_n arms that completed all scenes, the GPU-idle share and the share of runtime outside the PatchMatch phase correlate at $r = #fix(B.idle_vs_outside_r, 2)$ (input loading alone at $r = #fix(B.idle_vs_input_r, 2)$). The time an ACM method spends outside PatchMatch is largely time in which the GPU waits for the host. // src: v.idle_vs_outside_r, v.idle_vs_outside_n, v.idle_vs_input_r
+Host-boundedness is measured twice, by the driver's utilization counter and by the phase timers, and the two agree across the methods (#ref(<fig-bench-phases>)b): over the #B.idle_vs_outside_n methods that completed all scenes, the GPU-idle share and the share of runtime outside the PatchMatch phase correlate at $r = #fix(B.idle_vs_outside_r, 2)$ (input loading alone at $r = #fix(B.idle_vs_input_r, 2)$). The time an ACM method spends outside PatchMatch is largely time in which the GPU waits for the host. // src: v.idle_vs_outside_r, v.idle_vs_outside_n, v.idle_vs_input_r
 The host share is similar across the four ACM methods and smaller in MP-MVS and HPM-MVS. // src: v.acm4_idle_range, v.arms.mp/hpm.gpu_idle_share
-#ref(<sec:perf>) recovered a large part of the host cost on the same lineage. On CUMVS(APD), the #B.s43.commits commits of the stack reduced the host-side time on _pipes_ from #fix(B.s43.host_base_s, 1)~s to #fix(B.s43.host_stack_s, 1)~s, #pct(B.s43.host_saved_share, 0) less, and the kernel time by #pct(B.s43.kernel_saved_share, 0), without significant algorithmic changes (analysis runs on unlocked clocks, against the fixed base of #ref(<sec:perf>)). Because the ACM methods share this lineage and spend a larger share of their time on the host, similar recoveries are expected in them; this benchmark shows where that time is, not that it can be recovered. // src: v.s43 (perf43-numbers-results.json: phases.host, phases.kernel, stack.commits)
-=== Memory and energy <sec:bench-resources>
+#ref(<sec:perf>) recovered a large part of the host cost on the same lineage. On CUMVS(APD), the #B.s43.commits commits of the stack reduced the host-side time on _pipes_ from #fix(B.s43.host_base_s, 1)~s to #fix(B.s43.host_stack_s, 1)~s, #pct(B.s43.host_saved_share, 0) less, and the kernel time by #pct(B.s43.kernel_saved_share, 0), without significant algorithmic changes (analysis runs on unlocked clocks, against the fixed base of #ref(<sec:perf>)). Because the ACM methods share this lineage and spend a larger share of their time on the host, similar recoveries are expected in them. For APD-MVS's algorithm, the benchmark confirms the recovery over the #B.n_scenes scenes (#ref(<sec:bench-cumvs-apd>)); for the other methods it shows where the time is, not that it can be recovered. // src: v.s43 (perf43-numbers-results.json: phases.host, phases.kernel, stack.commits)
+== Memory and energy <sec:bench-resources>
 
 #let _hp = B.hpmpp
-The capped arms other than HPM-MVS++ need less than half of the #big(B.card_mib)~MiB card (#ref(<fig-bench-memory>)). CUMVS peaks at #big(arm(k.cumvs).peak_dev_mib)~MiB, #labs(B.capped_small) at #big(B.capped_small_peak_range_mib.first()) to #big(B.capped_small_peak_range_mib.last())~MiB, and ACMM and ACMMP at #big(arm(k.acmm).peak_dev_mib) and #big(arm(k.acmmp).peak_dev_mib)~MiB on #scene(arm(k.acmm).peak_dev_scene). At native resolution APD-MVS peaks at #big(arm(k.apd).peak_dev_mib)~MiB and DPE-MVS at #big(arm(k.dpe).peak_dev_mib)~MiB on #scene(arm(k.dpe).peak_dev_scene), #pct(arm(k.dpe).peak_dev_share_card, 0) of the card. // src: v.arms.*.peak_dev_mib, peak_dev_scene, peak_dev_share_card; v.capped_small_peak_range_mib; v.card_mib
+#assert(arm(k.acmmp).peak_dev_scene == arm(k.acmm).peak_dev_scene and arm(k.ours3200).peak_dev_scene == arm(k.acmm).peak_dev_scene and arm(k.oursnat).peak_dev_scene == arm(k.dpe).peak_dev_scene)
+The capped methods other than HPM-MVS++ need less than half of the #big(B.card_mib)~MiB card (#ref(<fig-bench-memory>)). CUMVS peaks at #big(arm(k.cumvs).peak_dev_mib)~MiB, #labs(B.capped_small) at #big(B.capped_small_peak_range_mib.first()) to #big(B.capped_small_peak_range_mib.last())~MiB, and ACMM, ACMMP and CUMVS(APD) \@ 3200 at #big(arm(k.acmm).peak_dev_mib), #big(arm(k.acmmp).peak_dev_mib) and #big(arm(k.ours3200).peak_dev_mib)~MiB, all three on #scene(arm(k.acmm).peak_dev_scene). At native resolution APD-MVS peaks at #big(arm(k.apd).peak_dev_mib)~MiB, and DPE-MVS and CUMVS(APD) \@ native on #scene(arm(k.dpe).peak_dev_scene) at #big(arm(k.dpe).peak_dev_mib) and #big(arm(k.oursnat).peak_dev_mib)~MiB, #pct(arm(k.dpe).peak_dev_share_card, 0) and #pct(arm(k.oursnat).peak_dev_share_card, 0) of the card (#ref(<sec:bench-cumvs-apd>)). // src: v.arms.*.peak_dev_mib, peak_dev_scene, peak_dev_share_card; v.capped_small_peak_range_mib; v.card_mib
 
 The thesis could reproduce APD-MVS @apd claims on ACMMP 3200~px memory (4.5GB), however, APD-MVS's 6.6~GB claim at native turned out 22% worse a peak at 8.5~GB. Thus the thesis could not verify their claim of consuming lower memory than ACMMP. Nonetheless, as the work explored in #ref(<sec:perf>), runtime and memory usage are highly related to implementation quality. Furthermore, increasing memory usage for PatchMatch-based MVS reconstruction pipelines is also a way to improve runtime performance (e.g., retaining more data between image passes). Therefore comparing methods on their memory usage is impractical on a global level.
 
@@ -140,28 +87,45 @@ HPM-MVS++ does not fit. It failed #_hp.n_failed of its #_hp.n_runs runs: every r
 #assert(_hp.ok_max_images < _hp.failed_min_images)
 
 #bench-figure("bench-memory",
-  [Peak device memory per scene (mean of the repeats of a cell) against the #big(B.card_mib)~MiB of the card. Crosses: the failed HPM-MVS++ runs, at the device memory in use when they crashed. Empty slots: the CUMVS(APD) arms of #ref(<sec:bench-cumvs-apd>).],
+  [Peak device memory per scene (mean of the repeats of a cell) against the #big(B.card_mib)~MiB of the card. Crosses: the failed HPM-MVS++ runs, at the device memory in use when they crashed.],
   [Peak device memory per scene against the card], "fig-bench-memory")
 
-Energy follows runtime. Over the #B.n_scenes scenes the GPU uses #fix(arm(k.cumvs).energy_total_kj, 0)~kJ for CUMVS, #fix(arm(k.acmh).energy_total_kj, 0) to #fix(arm(k.hpm).energy_total_kj, 0)~kJ for the other capped methods, and #big(arm(k.apd).energy_total_kj) and #big(arm(k.dpe).energy_total_kj)~kJ for APD-MVS and DPE-MVS (#ref(<table-bench-main>)). The mean power varies far less than the runtime, from #fix(arm(B.power_min).power_w, 0)~W (#lab(B.power_min)) to #fix(arm(B.power_max).power_w, 0)~W (#lab(B.power_max)), and #lab(B.power_max) draws the most power yet uses the least energy. // src: v.arms.*.energy_total_kj, power_w (energy / wall time)
-On the host, the ACM methods and MP-MVS peak at about #fix(arm(k.acmh).peak_host_gib, 0)~GiB of memory, CUMVS at #fix(arm(k.cumvs).peak_host_gib, 0)~GiB, the native arms at #fix(arm(k.apd).peak_host_gib, 0)~GiB and HPM-MVS at #fix(arm(k.hpm).peak_host_gib, 0)~GiB. // src: v.arms.*.peak_host_gib (peak_host_rss_mib)
+Energy follows runtime. Over the #B.n_scenes scenes the GPU uses #fix(arm(k.cumvs).energy_total_kj, 0)~kJ for CUMVS, #fix(B.lineage_energy_range.first(), 0) to #fix(B.lineage_energy_range.last(), 0)~kJ for the capped lineage, #fix(arm(k.ours3200).energy_total_kj, 0)~kJ for CUMVS(APD) \@ 3200, and #big(arm(k.oursnat).energy_total_kj), #big(arm(k.apd).energy_total_kj) and #big(arm(k.dpe).energy_total_kj)~kJ for CUMVS(APD) \@ native, APD-MVS and DPE-MVS (#ref(<table-bench-main>)). The mean power varies far less than the runtime, from #fix(arm(B.power_min).power_w, 0)~W (#lab(B.power_min)) to #fix(arm(B.power_max).power_w, 0)~W (#lab(B.power_max)), and #lab(B.power_max) draws the most power yet uses the least energy. // src: v.arms.*.energy_total_kj, power_w (energy / wall time), v.lineage_energy_range (ACMH, HPM-MVS)
+On the host, the ACM methods and MP-MVS peak at about #fix(arm(k.acmh).peak_host_gib, 0)~GiB of memory, CUMVS at #fix(arm(k.cumvs).peak_host_gib, 0)~GiB, APD-MVS and DPE-MVS at #fix(arm(k.apd).peak_host_gib, 0)~GiB and HPM-MVS at #fix(arm(k.hpm).peak_host_gib, 0)~GiB. CUMVS(APD) peaks at #fix(arm(k.ours3200).peak_host_gib, 0)~GiB at 3200~px and #fix(arm(k.oursnat).peak_host_gib, 0)~GiB at native resolution, as it keeps the maps of every image in host memory (#ref(<sec:apd-cumvs-inmemory>)). // src: v.arms.*.peak_host_gib (peak_host_rss_mib)
 // NOTE(author): analysis.md calls HPM-MVS's host peak "a known leak"; the cause is not printed, as
 // nothing in the data shows it.
-=== CUMVS(APD) in the benchmark <sec:bench-cumvs-apd>
+== CUMVS(APD) in the benchmark <sec:bench-cumvs-apd>
 
-// `top`, not `auto`: with `auto` or `bottom` this placeholder and the heading after it keep moving
-// each other between pages and the layout does not converge (checked 2026-11-22).
-#place(top, float: true, clearance: 22pt, [#figure(
-  block(stroke: (paint: luma(60%), dash: "dashed"), inset: 12pt, width: 100%, height: 4cm)[
-    #align(center + horizon)[_Figure E, pending the M8 data._ \ Per scene: run-time ratio of CUMVS(APD) @ native to APD-MVS (total ratio as a line), and the F1 difference with its 95% interval.]
-  ],
-  caption: flex-caption([CUMVS(APD) at native resolution against APD-MVS, per scene (pending).], [CUMVS(APD) against APD-MVS per scene]),
-) <fig-bench-cumvs-apd>])
+#let _sc(s) = O.scene.at(s)
+CUMVS(APD) \@ native takes #big(_t(k.oursnat).mean)~s for the #B.n_scenes scenes, against #big(_t(k.apd).mean)~s for APD-MVS. As the ratio of the two totals, it is #times(O.speedup.mean, 3) \[#fix(O.speedup.lo, 3), #fix(O.speedup.hi, 3)\] faster and needs #pct(O.time_share, 0) of the time of APD-MVS. The speedup holds on every scene, from #times(O.x_min, 2) on #scene(O.x_min_scene) to #times(O.x_max, 2) on #scene(O.x_max_scene) (#ref(<fig-bench-cumvs-apd>)a). // src: v.ours.speedup (ratio of the means of the per-repeat 13-scene totals, delta-method interval, Welch df; the per-repeat-index ratios give v.ours.speedup_per_repeat_check), v.ours.time_share, v.ours.x_min/x_max (ratio of cell means)
 
-#block(stroke: 0.6pt + rgb("#CC79A7"), inset: 8pt, width: 100%, breakable: false)[
-  _this subsection is written once the M8 campaign data arrives._ It reports CUMVS(APD), APD-MVS's algorithm integrated into CUMVS's production CUDA frontend and sped up in #ref(<sec:perf>), at native resolution against APD-MVS and capped at 3200~px among the capped arms.
-]
+#bench-figure("bench-cumvs-apd",
+  [CUMVS(APD) \@ native against APD-MVS, per scene, ordered by the speedup. (a) Speedup: the runtime of APD-MVS over that of CUMVS(APD) (ratio of the cell means, with #B.ci_level_pct% intervals); dashed: the ratio of the #(B.n_scenes)-scene totals, #times(O.speedup.mean, 2). (b) Difference in F1 at 2~cm, CUMVS(APD) minus APD-MVS, with its #B.ci_level_pct% interval (Welch, #spell(B.n_rep) repeats each); filled: the interval excludes zero; dashed: the difference of the #(B.n_scenes)-scene means.],
+  [CUMVS(APD) against APD-MVS per scene], "fig-bench-cumvs-apd")
 
+Its F1 matches that of APD-MVS closely. Its mean F1 at 2~cm, #fix(_f(k.oursnat).mean, 3), is #sci(O.d_f1_13.at("2cm"), 2)~pp above that of APD-MVS; the difference is in completeness (#signed(O.d_comp_13_pp, 2)~pp), while accuracy differs by #signed(O.d_acc_13_pp, 2)~pp. At 1~cm the difference is #sci(O.d_f1_13.at("1cm"), 2)~pp, and from 5~cm on its interval contains zero. Per scene (#ref(<fig-bench-cumvs-apd>)b), F1 at 2~cm is higher on #spell(O.d_f1_pos.len()) scenes, by at most #fix(O.d_f1_max, 2)~pp on #scene(O.d_f1_max_scene), and lower on none; on the other #spell(O.d_f1_zero.len()) the interval contains zero, and no interval reaches beyond #sym.plus.minus#fix(O.d_f1_absmax_ci, 2)~pp. // src: v.ours.d_f1_13 (Welch interval of the difference of the 13-scene means over the repeats), d_comp_13_pp, d_acc_13_pp; v.ours.scene.*.d_f1_2cm (Welch, per cell), d_f1_pos, d_f1_neg, d_f1_zero, d_f1_absmax_ci
+#assert(O.d_f1_neg.len() == 0 and O.d_f1_13.at("2cm").lo > 0 and O.d_f1_13.at("1cm").lo > 0 and ("5cm", "10cm", "20cm").all(t => O.d_f1_13.at(t).lo < 0 and O.d_f1_13.at(t).hi > 0), message: "the F1 comparison with APD-MVS changed: rewrite the paragraph")
+No tolerance is applied to these differences, because CUMVS(APD) is not expected to compute exactly what APD-MVS computes: it carries the bug fixes found during the integration and the optimizations. Of these, only the fix of the upscaling that carries the depth and normal maps from one round to the next changes what is computed: the original read uninitialized memory into the reconstruction, and its fix changed F1 slightly (#ref(<sec:perf>)). The other fixes, of the division of zero by zero in the classification (#ref(<sec:perf-class>)) and, made for the benchmark, of the unchecked device allocations, give the same point cloud. CUMVS's frontend had no measurable effect on F1 in the integration measurements on _pipes_ (#ref(<sec:apd-cumvs>)), and the propagation and classification changes none in the seed-paired comparisons of #ref(<sec:perf-prop>) and #ref(<sec:perf-class>). On the scenes with images of different sizes, it pads the images with zeros as APD-MVS's converter does. The differences against APD-MVS are attributed to the bug fixes, the upscaling fix being the one that changes what is computed. // src: .dev/deviations-from-apd.md D6 (024808a, 6c1f7b1), D1-D5 (pipes, two runs each), D7-D9 (Tier 1, five seeds), D10 (.dev/bench-m8/cards/M8.1-padding.md: courtyard, electro, facade, playground, terrace, terrains); .dev/production-improvements.md entries 5-7 (E0, md5 identical)
+// NOTE(author): attribution per results-decisions.md, answers of 2026-11-21 item 4. The evidence does
+// not show the sign per scene: D6 alone was measured on pipes at -0.15 pp [-0.27, -0.02] at 2 cm
+// (analysis runs, seeds 1-5, deviations-from-apd.md D6), while the campaign shows pipes at
+// +0.20 pp [+0.03, +0.37] against APD-MVS; before D6, the integration was +0.36 pp above APD-MVS on
+// pipes (n = 2, deviations-from-apd.md "D2 revised"). Label <sec:apd-cumvs> must be added to the
+// heading "APD-MVS integration into CUMVS" (methodology.typ); done at the M8 integration, 2026-11-23.
+
+#let _cs = O.class_s
+The saving falls where #ref(<sec:perf>) made it (#ref(<fig-bench-phases>)a). Of the #big(O.saved_s)~s saved over the #B.n_scenes scenes, #pct(O.class_saved_share.patchmatch, 0) is in PatchMatch, which takes #big(_cs.at(k.oursnat).patchmatch)~s against #big(_cs.at(k.apd).patchmatch)~s, #times(O.class_x.patchmatch, 2) less, and #pct(O.class_saved_share.input_load, 0) in input loading, which takes #big(_cs.at(k.oursnat).input_load)~s against #big(_cs.at(k.apd).input_load)~s (#ref(<sec:perf-input>), #ref(<sec:apd-cumvs-inmemory>)). Fusion, outside the scope of #ref(<sec:perf>), takes about the same time in both, #big(_cs.at(k.oursnat).fusion) and #big(_cs.at(k.apd).fusion)~s, and is now #pct(_sh(k.oursnat, "fusion"), 0) of the runtime of CUMVS(APD) \@ native. The converter adds #fix(O.convert_s.first(), 0)~s to CUMVS(APD) and #fix(O.convert_s.last(), 0)~s to APD-MVS. // src: v.ours.saved_s, class_saved_share, class_s (share x mean total, phase-categories.csv), class_x; v.ours.convert_s
+#assert(calc.abs(O.class_x.fusion - 1) < 0.02 and O.class_saved_share.patchmatch + O.class_saved_share.input_load > 0.9)
+
+The speedup costs device memory on some scenes and saves it on others. CUMVS(APD) \@ native peaks higher than APD-MVS on #spell(O.mem_higher.len()) scenes and lower on #spell(O.mem_lower.len())\; its largest peak, #big(arm(k.oursnat).peak_dev_mib)~MiB on #scene(arm(k.oursnat).peak_dev_scene), is #pct(arm(k.oursnat).peak_dev_share_card, 0) of the card, against #big(arm(k.apd).peak_dev_mib)~MiB for APD-MVS. By design, CUMVS(APD) keeps the device copies of the views between passes and frees the least recently used ones only when a pass needs the room, so it trades free device memory for fewer uploads. Over the #B.n_scenes scenes it uses #pct(O.energy_ratio, 0) of the GPU energy of APD-MVS, #big(arm(k.oursnat).energy_total_kj) against #big(arm(k.apd).energy_total_kj)~kJ, with a mean power #pct(O.power_ratio - 1, 0) higher. // src: v.ours.mem_higher, mem_lower (max peak per cell); v.arms.*.peak_dev_mib; .dev/production-improvements.md entry 7 (b5e2d55, MakeDeviceRoom); v.ours.energy_ratio, power_ratio
+#assert(O.mem_higher.len() + O.mem_lower.len() == B.n_scenes)
+
+CUMVS(APD) \@ 3200 has no APD-MVS counterpart, as no binary runs APD-MVS's algorithm capped at 3200~px; it is placed among the capped methods. With a mean F1 of #fix(_f(k.ours3200).mean, 3) it ranks #ordinal(O.c3200_rank_capped) of the #spell(O.c3200_n_capped) capped methods, behind #labs(O.c3200_above), and it is the slowest of them, at #times(O.c3200_x_cumvs, 1) the time of CUMVS and #times(O.c3200_x_mp, 1) that of MP-MVS, which dominates it at 2~cm. Against CUMVS(APD) \@ native it takes #pct(O.c3200_x_on, 0) of the time for #signed(O.c3200_d_f1_on_pp.at("2cm"), 2)~pp of F1 at 2~cm and #signed(O.c3200_d_f1_on_pp.at("1cm"), 2)~pp at 1~cm; the gap closes at coarser tolerances, where the method joins the front (#ref(<sec:bench-time>)). Its accuracy, #fix(arm(k.ours3200).acc_2cm.mean, 3), lies in the range of the capped lineage and its completeness, #fix(arm(k.ours3200).comp_2cm.mean, 3), below that of the native methods. // src: v.ours.c3200_* ; v.arms.production-apd-mvs@3200-capped.{f1_2cm, acc_2cm, comp_2cm}; v.lineage_acc_range
+#assert(arm(k.ours3200).acc_2cm.mean >= B.lineage_acc_range.first() and arm(k.ours3200).acc_2cm.mean <= B.lineage_acc_range.last() and O.c3200_slower_than.len() == O.c3200_n_capped - 1 and B.dominated_by.at(k.ours3200).contains(k.mp))
+
+#let _s = B.s43
+#let _x = O.s43_vs_bench
+In #ref(<sec:perf>), the optimizations made CUMVS(APD) #times(_x.pipes_s43_x, 2) faster on _pipes_ and #times(_x.office_s43_x, 2) on _office_, against the fixed base of #ref(<sec:perf>) (the integration with the upscaling fix, before the optimizations), in analysis runs on an RTX 5070 Ti with unlocked clocks. The benchmark measures CUMVS(APD) against the original APD-MVS, on the RTX 5070 of #ref(<bench-system>) at the held clock: #times(O.speedup.mean, 2) over the #B.n_scenes scenes, #times(_x.pipes_bench_x, 2) on _pipes_ and #times(_x.office_bench_x, 2) on _office_. The two run sets differ in card, clock and baseline, and their numbers are not combined. Both show the speedup of #ref(<sec:perf>): the halving found on two scenes holds on all #B.n_scenes, including the #spell(B.n_scenes - 2) that the optimizations were never run on. // src: v.ours.s43_vs_bench (perf43 pipes.span, office.span; per-scene ratios of cell means); v.ours.x_min, x_max
 
 == CUMVS(APD)
 

@@ -195,7 +195,7 @@ For the benchmarking in this thesis, ETH3D dataset has been selected as the eval
 - many algorithm choose this dataset as their primary target for benchmarking,
 - and convenient evaluation scripts are available.
 
-The dataset features 13 scenes with provided ground-truth for a training set. It has a wide-variety of indoor and outdoor scenes. The algorithms can react very differently to scene differences thus including all scenes in the benchmarking is crucial. For example, the dataset consists of 7 scenes that have uniform-sized images and 6 scenes which have mixed-sized images. The APD-MVS and DPE-MVS implementations handle the mixed-sized images in the converter by zero-padding the images to a uniform size. It is important to note that the benchmarking experiment does not try to control these implementation decisions, it merely acknowledges them.
+The dataset features 13 scenes with provided ground-truth for a training set. It has a wide-variety of indoor and outdoor scenes. The algorithms can react very differently to scene differences thus including all scenes in the benchmarking is crucial. For example, the dataset consists of 7 scenes that have uniform-sized images and 6 scenes which have mixed-sized images. The APD-MVS and DPE-MVS implementations handle the mixed-sized images in the #todo[converter never explained!] converter by zero-padding the images to a uniform size. It is important to note that the benchmarking experiment does not try to control these implementation decisions, it merely acknowledges them.
 
 Almost none of the selected algorithms publishes results for native resolution ($6221$ x $4146$ px) on ETH3D images. They explicitly state that their published results resized images at 3200px in their implementation @acmh_acmm @acmp @acmmp @hpm @hpm_plusplus @mp_mvs all based on the decision of @colmap_mvs. APD-MVS and DPE-MVS publishes results primarely for native resolution @apd @dpe. Note, that the resizing step is slightly different as CUMVS uses area averaging and other methods generally use bilinear interpolation with no anti-aliasing. Fixed constant pixel-based settings in the PatchMatch kernels change meaning with resolution such as window size, or step size, geometric consistency limits, planar prior grid size, propagation reach. Therefore, the benchmarking keeps the problem of resizing to the authors choice, and considers this step as part of their proposed reconstruction system.
 
@@ -452,7 +452,7 @@ APD-MVS @apd is an extension for ACMM @acmh_acmm focusing on textureless regions
 ] <alg:apd-imagepass>
 
 
-=== APD-MVS integration into CUMVS
+=== APD-MVS integration into CUMVS <sec:apd-cumvs>
 
 This section describes the integration process and the differences between the integrated and the original performance of APD-MVS. The work starts by integrating APD-MVS as a propagation backend into CUMVS, resulting in _CUMVS(APD)_. CUMVS already supports multiple backends and implements Gipuma- and ACMH-style propagation and allows for switching between the backends using a Command-Line Interface (CLI) flag. The first goal of the thesis is to achieve a seemless integration where the F1-score results are similar to the original APD-MVS implementation.
 

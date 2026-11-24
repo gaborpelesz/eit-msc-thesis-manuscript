@@ -35,7 +35,7 @@ PERF43_JSON = $(PERF43)/derived/numbers-method.json
 # installs pandas, scipy and matplotlib from the header of each script). Nothing of it is committed.
 BENCH = generated/bench-5.2
 BENCH_JSON = $(BENCH)/derived/numbers-bench.json
-BENCH_FIGURES = $(addprefix $(BENCH)/derived/figures/bench-,$(addsuffix .svg,tradeoff scenes phases memory repeatability))
+BENCH_FIGURES = $(addprefix $(BENCH)/derived/figures/bench-,$(addsuffix .svg,tradeoff scenes phases memory repeatability cumvs-apd))
 
 DATA = $(STAGE_JSON) $(PASS_JSON) $(KERNEL_JSON) $(PERF43_JSON) $(BENCH_JSON) $(BENCH_FIGURES)
 
@@ -59,6 +59,9 @@ $(PERF43_JSON): $(PERF43)/scripts/perf43_json.py $(wildcard $(PERF43)/data/*.csv
 # numbers-results.json is written together with $(PERF43_JSON), which stands for the set.
 $(BENCH_JSON): $(BENCH)/scripts/bench_json.py $(BENCH)/scripts/arms.py $(wildcard $(BENCH)/data/*.csv) $(PERF43_JSON)
 	uv run $< --perf43 $(PERF43)/derived/numbers-results.json
+
+$(BENCH)/derived/figures/bench-cumvs-apd.svg: $(BENCH)/scripts/fig_cumvs_apd.py $(BENCH)/scripts/style.py $(BENCH_JSON)
+	uv run $<
 
 $(BENCH)/derived/figures/bench-%.svg: $(BENCH)/scripts/fig_%.py $(BENCH)/scripts/style.py $(BENCH_JSON)
 	uv run $<

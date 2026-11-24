@@ -4,8 +4,9 @@ figure scripts and the Typst files use the same labels and slots.
 
 An arm is (method, processed resolution), keyed as aggregate.py keys it:
 `<harness method id>@<processed_resolution>`. The two CUMVS(APD) arms are reserved here with
-the keys their runs will carry (harness id `production-apd-mvs`); until their
-runs are in the data they are drawn as empty, labelled slots, so adding them is a data refresh.
+the keys their runs carry (harness id `production-apd-mvs`; width 3200 -> 3200-capped, width
+native -> native). Their runs are in the data since the M8 refresh (2026-11-23); a reserved arm
+without runs would be drawn as an empty, labelled slot.
 
 Colour follows the group, not the arm (twelve arms exceed any colour-blind-safe categorical
 set); the marker and a direct label identify the arm. Okabe-Ito hues.

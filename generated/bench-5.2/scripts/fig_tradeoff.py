@@ -2,7 +2,7 @@
 # requires-python = ">=3.12"
 # dependencies = ["matplotlib==3.10.*", "numpy==2.*"]
 # ///
-"""Figure A: mean F1 at 2 cm over the 13 scenes against the total run time of the 13 scenes, with
+"""Figure A: mean F1 at 2 cm over the 13 scenes against the total runtime of the 13 scenes, with
 the Pareto front. Every point and label from derived/numbers-bench.json. The reserved
 CUMVS(APD) arms are drawn when their data is in the JSON; until then they appear only in the
 legend, marked as pending."""
@@ -30,11 +30,11 @@ ax.plot(xs, ys, color=S.MUTED, lw=0.9, ls=(0, (4, 2)), zorder=1)
 # labels: offsets in points, chosen so that no label overlaps a point or another label
 off = {
     "ACMH@3200-capped": (6, 0, "left"), "ACMP@3200-capped": (-6, 0, "right"),
-    "ACMM@3200-capped": (6, 0, "left"), "ACMMP@3200-capped": (6, -3, "left"),
-    "MP-MVS@3200-capped": (-6, 4, "right"), "HPM-MVS@3200-capped": (6, 3, "left"),
-    "CUMVS@3200-capped": (0, -10, "center"), "APD-MVS@native": (-6, 3, "right"),
+    "ACMM@3200-capped": (6, 0, "left"), "ACMMP@3200-capped": (6, -4, "left"),
+    "MP-MVS@3200-capped": (-6, 4, "right"), "HPM-MVS@3200-capped": (-7, -2, "right"),
+    "CUMVS@3200-capped": (0, -10, "center"), "APD-MVS@native": (7, -7, "left"),
     "DPE-MVS@native": (-6, 3, "right"),
-    "production-apd-mvs@3200-capped": (6, 3, "left"), "production-apd-mvs@native": (6, -6, "left"),
+    "production-apd-mvs@3200-capped": (8, 1, "left"), "production-apd-mvs@native": (-8, 6, "right"),
 }
 for a in present:
     b = F[a]
@@ -48,7 +48,7 @@ for a in present:
     ax.annotate(r["labels"][a], (x, y), xytext=(dx, dy), textcoords="offset points",
                 ha=ha, va="center", fontsize=7, color=S.INK)
 ax.set_xscale("log")
-ax.set_xlabel("Total run time over the 13 scenes (s, log scale)")
+ax.set_xlabel("Total runtime over the 13 scenes (s, log scale)")
 ax.set_ylabel("Mean F1 at 2 cm over the 13 scenes")
 ax.grid(True, which="major", axis="both")
 ax.set_xlim(F[fr[0]]["wall_total_s"]["mean"] / 1.6, F[fr[-1]]["wall_total_s"]["mean"] * 1.6)

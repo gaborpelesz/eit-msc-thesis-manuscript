@@ -58,12 +58,8 @@ demonstrate our own implementation that fixes issues
 */
 #include "chapters/results.typ"
 
+#include "chapters/conclusion.typ"
 
-= Conclusion
-
-/*
-should answer the RQs directly, say what the work can't claim and list of future work
-*/
 
 // Acknowledgements (optional)
 // #heading(numbering: none)[#tr("acknowledgements")]

@@ -184,10 +184,10 @@ and never committed; the inputs and the scripts are.
   snapshots in `data/`, one script in `scripts/` (`python3`, standard library
   only), JSON for `chapters/figures/perf-*.typ` and the text in `derived/`.
 - `generated/bench-5.2/` — the final benchmark of section 5.2 and its appendix:
-  the CSV snapshot of the 650 runs in `data/`, scripts in `scripts/` (need
+  the CSV snapshot of the 780 runs in `data/`, scripts in `scripts/` (need
   `uv`), and in `derived/` the JSON that `chapters/results.typ`,
   `chapters/appendix_benchmark.typ` and `chapters/figures/bench-common.typ`
-  read, with the five SVG figures. Its `README.md` describes the files.
+  read, with the six SVG figures. Its `README.md` describes the files.
 
 ## Licences
 

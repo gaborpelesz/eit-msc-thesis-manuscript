@@ -3,7 +3,7 @@
 # dependencies = ["matplotlib==3.10.*", "numpy==2.*"]
 # ///
 """Appendix figure: half-width of the 95 % confidence interval of each cell (arm and scene, 5
-repeats), relative to the cell mean, for the run time and for F1 at 2 cm, with the 1 % line of
+repeats), relative to the cell mean, for the runtime and for F1 at 2 cm, with the 1 % line of
 the dimensioning. Every value from derived/numbers-bench.json."""
 import numpy as np
 
@@ -16,7 +16,7 @@ cells = v["rep"]["cells_list"]
 cols = [a for a in r["order"] if any(c["arm"] == a for c in cells)]
 fig, axes = S.plt.subplots(1, 2, figsize=(S.TEXT_W, 2.5), sharey=False, gridspec_kw=dict(wspace=0.25))
 rng = np.random.default_rng(1)
-for ax, key, title, le in ((axes[0], "wall_hw_pct", "(a) Run time", v["rep"]["wall_le1"]),
+for ax, key, title, le in ((axes[0], "wall_hw_pct", "(a) Runtime", v["rep"]["wall_le1"]),
                            (axes[1], "f1_hw_pct", "(b) F1 at 2 cm", v["rep"]["f1_le1"])):
     for j, a in enumerate(cols):
         x = np.array([c[key] for c in cells if c["arm"] == a])

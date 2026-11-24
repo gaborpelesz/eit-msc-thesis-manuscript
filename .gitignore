@@ -11,3 +11,4 @@ generated/bench-5.2/derived/
 # misc
 .DS_Store
 __pycache__
+.vscode

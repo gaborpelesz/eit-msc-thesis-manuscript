@@ -30,6 +30,8 @@
 #let times(x, digits) = [#fix(x, digits)#sym.times]
 // mean with its 95 % interval, from a record with mean, lo, hi
 #let mci(s, digits) = [#fix(s.mean, digits) \[#fix(s.lo, digits), #fix(s.hi, digits)\]]
+// a signed difference with its 95 % interval, from a record with mean, lo, hi: +0.05 [+0.02, +0.08]
+#let sci(s, digits) = [#signed(s.mean, digits) \[#signed(s.lo, digits), #signed(s.hi, digits)\]]
 // half-width of an interval as ± in the unit of the mean
 #let hw(s, digits) = [#sym.plus.minus#fix(s.hw, digits)]
 // seconds as hours
@@ -46,7 +48,7 @@
   cumvs: "CUMVS@3200-capped", apd: "APD-MVS@native", dpe: "DPE-MVS@native",
   ours3200: "production-apd-mvs@3200-capped", oursnat: "production-apd-mvs@native",
 )
-// is an arm's data in the JSON yet (false for the reserved CUMVS(APD) arms until their runs are in)
+// is an arm's data in the JSON (false for a reserved arm without runs)
 #let has(key) = key in A and not A.at(key).reserved
 #let labs(keys) = enumerate-and(keys.map(lab))
 #let scene(s) = emph(s)

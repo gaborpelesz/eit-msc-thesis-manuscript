@@ -5,11 +5,16 @@ Data behind the benchmark results: the section "Benchmarking" of the results cha
 (`chapters/appendix_benchmark.typ`). Every number and every figure of the two is generated from
 the files in `data/`; nothing is typed into the chapters.
 
-The benchmark is 650 runs: 10 methods on the 13 ETH3D training scenes with five repeats each, in
-the sessions `final-author-r1` to `final-author-r5` (one session per repeat; the column `machine`
-says where a session ran). 605 runs succeeded. The 45 failed runs are kept, with their status and
-failure class. The two CUMVS(APD) arms are not in the data yet: their keys are reserved in
-`scripts/arms.py`, and the tables and figures show them as pending.
+The benchmark is 780 runs in two campaigns under the same protocol, on the 13 ETH3D training
+scenes with five repeats each (one session per repeat; the column `machine` says where a session
+ran):
+
+- the final benchmark, 650 runs of 10 methods in the sessions `final-author-r1` to
+  `final-author-r5`. 605 runs succeeded. The 45 failed runs are kept, with their status and
+  failure class;
+- the CUMVS(APD) campaign, 130 runs of its two arms (native resolution and capped at 3200 px) in
+  the sessions `m8-author-r1`, `r2`, `r3a`, `r3b`, `r4` and `r5`, imported on 2026-11-23. All
+  succeeded. The other methods were not run again.
 
 ## Files
 
@@ -18,7 +23,7 @@ store of the five sessions; the aggregation script and the store are outside thi
 
 | File | What it is |
 |---|---|
-| `data/runs.csv` | One row per run (650): method, scene, repeat, status, fork commit, image digest, wall time, converter time, F1, accuracy and completeness at five tolerances, peak device and host memory, energy, clock and telemetry summaries. |
+| `data/runs.csv` | One row per run (780): method, scene, repeat, status, fork commit, image digest, wall time, converter time, F1, accuracy and completeness at five tolerances, peak device and host memory, energy, clock and telemetry summaries. |
 | `data/failures.csv` | The 45 failed runs, with the same columns. |
 | `data/cells.csv` | Per arm, scene and metric: mean, standard deviation and interval over the repeats. Used only as a cross-check. |
 | `data/pareto.csv` | The Pareto front per tolerance, as the aggregation computed it. Used only as a cross-check. |
@@ -38,7 +43,7 @@ installs the packages pinned in the header of each script.
 | File | Writes | From |
 |---|---|---|
 | `scripts/bench_json.py` | `derived/numbers-bench.json`: every value of the section, the appendix and the figures | `data/*.csv`, and `../perf-4.3/derived/numbers-results.json` for the section 4.3 numbers it quotes; checks its results against `cells.csv` and `pareto.csv` and stops when a premise of the text no longer holds |
-| `scripts/fig_tradeoff.py`, `fig_scenes.py`, `fig_phases.py`, `fig_memory.py`, `fig_repeatability.py` | `derived/figures/bench-<name>.svg` | `derived/numbers-bench.json` |
+| `scripts/fig_tradeoff.py`, `fig_scenes.py`, `fig_phases.py`, `fig_memory.py`, `fig_repeatability.py`, `fig_cumvs_apd.py` | `derived/figures/bench-<name>.svg` | `derived/numbers-bench.json` |
 | `scripts/arms.py` | — | The arm registry: key, label, group, order, colour and marker of every arm. |
 | `scripts/style.py` | — | The figure style, shared by the figure scripts; it uses the Latin Modern fonts in `template/fonts`. |
 
@@ -63,7 +68,7 @@ uv run generated/bench-5.2/scripts/fig_tradeoff.py   # and the other fig_*.py
 
 ## Refreshing the snapshot
 
-When runs are added (the CUMVS(APD) arms), replace the CSV files, keep `hostname` and `gpu_uuid`
+When runs are added, replace the CSV files, keep `hostname` and `gpu_uuid`
 out of `runs.csv` and `failures.csv`, update the two checksum files and run `make figures`.
 `bench_json.py` asserts the premises that the text relies on (the members of the Pareto front,
 the order of the arms, which runs failed); when one of them changes it stops, and the sentence
