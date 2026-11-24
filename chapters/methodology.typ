@@ -277,7 +277,7 @@ For controlling the experiments the 5070 GPU's streaming multiprocessor (SM) clo
 
 Controlling the host requires us to pin the containers to use CPU threads 0-7,16-23 because of the 9950X3D dual CCD design has 96 MB L3 cache for these 16 threads, while having only 32 MB for the other 16. A method that is only running on the latter would be in disadvantage compared to the others that run only on the former. Apart from this, the benchmark sets the CPU governor and the Energy Performance Preference (EPP) to performance mode. However, the CPU frequency scaling is left on as it didn't provide significant differences in wall time. This agrees with public reviews @gamersnexus2025_9950x3d reporting that the 9950X3D holds its boost clocks under sustained all-core load.
 
-== Selected method decomposition
+== CUMVS(APD) baseline depiction
 
 APD-MVS is one of the more recent approaches to help the patch-match window problem. The main contribution of this thesis is the integration of APD-MVS into CUMVS. #todo[slightly better intro once we have more content]
 
