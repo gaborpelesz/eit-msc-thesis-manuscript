@@ -168,25 +168,27 @@ the methodology section mainly contains the following in some way:
 - own implementation that shows and demosntrates improvements
 */
 
-== Benchmarking the state-of-the-art
+This chapter introduces the core contributions of this thesis. First, #ref(<sec:methodology-benchmarking>) describes a benchmarking process that is being used to evaluate state-of-the-art MVS algorithms. It defines the configuration, the exact metrics being measured, the process to find out the number of necessary repeats, and the measurement system and hardware configuration. Following the rigorous benchmarking, #ref(<sec:methodology-cumvs-baseline>) examines APD-MVS and describes its integration into CUMVS, a production-ready third-party environment. The resulting integration serves as the baseline for performance optimizations that the thesis explores in #ref(<sec:methodology-cumvs-apd-perf>). The output of the integration and optimization is CUMVS(APD), the contribution of this thesis. The implementation improves the runtime performance of APD-MVS system by 2x, while achieving identical results in terms of quality.
 
-To showcase the claim that the lineage of MVS algorithms improve quality while they also increase running time, the work starts with a comprehensive benchmarking of the selected methods.
 
-We have chosen 13 MVS algorithms to evaluate in total with the following considerations: all selected algorithms are building on the same concepts of Patch-Match-based stereo reconstruction and they are top-performers on the ETH3D leaderboard as of writing the thesis. They also provide access to an open-source implementation on Github which was crucial for evaluating implementation performance and comparing local with published results. The selected methods contain the
+== Benchmarking the state-of-the-art <sec:methodology-benchmarking>
+
+This section describes the evaluation of 10 MVS algorithms that were selected with the following considerations: all selected algorithms are building on the same concepts of PatchMatch-based stereo reconstruction (#ref(<sec:bg-pm-mvs>)) and they are top-performers on the ETH3D leaderboard (#ref(<sec:benchmark-dataset>)) as of writing the thesis. Furthermore, they all provide access to an open-source implementation on Github which was crucial for evaluating implementation performance and reproducing published results. The selected methods follow the lineage, described in #ref(<sec:literature_review-acm-lineage>), and contain
 - ACM-family (ACMH, ACMP, ACMM, ACMMP): they establish the foundation on top of Gipuma that successors are building upon.
 - APD-MVS, HPM-MVS, and MP-MVS: three major work on top of the ACM-family, all choosing a different approach to improve the results.
-- APDe-MVS, DPE-MVS, DVP-MVS: APD-MVS successors extending the lineage.
+- DPE-MVS: APD-MVS successors extending the lineage.
 - HPM-MVS++: HPM-MVS successor.
-- TSAR-MVS: a different approach than the ACM-family building on Gipuma.
 - CUMVS: a simplification and reimplementation of the ACMH/ACMM released by an independent high-performance company, Fixstars. The implementation focuses on performance and production quality.
 
-The benchmarking analyses predefined phases of the algorithms to gather as much information as possible without significant modifications to the implementation. The algorithm implementations are treated as is, with only essential changes to the implementations as possible. The required changes are mostly related to setup and compilation, or phase timing for the benchmarking. Later sections describe these changes in depth.
+/*APDe-MVS, DVP-MVS were considered but not chosen*/ 
 
-The benchmarking has two target measurements: speed through *mean execution time*, and quality through *F1 score*.
+The benchmarking _forked_ the implementations and analyses them through injected phase timers to gather as much information as possible. The algorithm implementations are treated as is with only essential and non-harmful deviations. Apart from the phase timers, the required changes are related to setup and compilation, described in #ref(<sec:methodology-deviations>).
+
+The benchmarking has two target measurements: runtime speed through *mean execution time*, and quality through ETH3D's *F1-score*.
 
 === Configuration
 
-==== Dataset, selected scenes, and input resolution
+==== Dataset, selected scenes, and input resolution <sec:benchmark-dataset>
 
 There are many influential benchmarks in the field of 3D reconstruction all of them serving a different purpose. The Middlebury dataset @middlebury_dataset serves as the foundational work in creating a structured framework for evaulating two-view stereo algorithms. DTU MVS dataset @dtu_dataset was established for robotics. It provides no leaderboard to rank MVS algorithms and their performances. ETH3D @eth3d_dataset is dataset with natural, large-scale scenes, high-resolution images, and provided ground-truth camera parameters to directly evaluate MVS algorithms for pointcloud reconstruction. It showcases a leaderboard, with many SOTA MVS contenders. Tanks and Temples @tanks_and_temples_dataset focuses on full 3D pipeline evaluation thus an evaluation requires camera parameter estimation as the first step. It also provides a good leaderboard with many SOTA MVS methods.
 
@@ -195,13 +197,21 @@ For the benchmarking in this thesis, ETH3D dataset has been selected as the eval
 - many algorithm choose this dataset as their primary target for benchmarking,
 - and convenient evaluation scripts are available.
 
-The dataset features 13 scenes with provided ground-truth for a training set. It has a wide-variety of indoor and outdoor scenes. The algorithms can react very differently to scene differences thus including all scenes in the benchmarking is crucial. For example, the dataset consists of 7 scenes that have uniform-sized images and 6 scenes which have mixed-sized images. The APD-MVS and DPE-MVS implementations handle the mixed-sized images in the #todo[converter never explained!] converter by zero-padding the images to a uniform size. It is important to note that the benchmarking experiment does not try to control these implementation decisions, it merely acknowledges them.
+The dataset features 13 scenes with provided ground-truth for a training set. It has a wide-variety of indoor and outdoor scenes. The algorithms can react very differently to scene differences thus including all scenes in the benchmarking is crucial. For example, the dataset consists of 7 scenes that have uniform-sized images and 6 scenes which have mixed-sized images. How the implementations prepare these images is described in #ref(<sec:bench-converter>).
 
 Almost none of the selected algorithms publishes results for native resolution ($6221$ x $4146$ px) on ETH3D images. They explicitly state that their published results resized images at 3200px in their implementation @acmh_acmm @acmp @acmmp @hpm @hpm_plusplus @mp_mvs all based on the decision of @colmap_mvs. APD-MVS and DPE-MVS publishes results primarely for native resolution @apd @dpe. Note, that the resizing step is slightly different as CUMVS uses area averaging and other methods generally use bilinear interpolation with no anti-aliasing. Fixed constant pixel-based settings in the PatchMatch kernels change meaning with resolution such as window size, or step size, geometric consistency limits, planar prior grid size, propagation reach. Therefore, the benchmarking keeps the problem of resizing to the authors choice, and considers this step as part of their proposed reconstruction system.
 
 Although it is interesting from an algorithm evaluation perspective to observe the behavior of the implementations at lower resolutions, it will also keep the choice of resizing to 3200px or keeping the native resolution parameter. 3D reconstruction software usually provide the ability to (either explicitly or implicitly through "quality" flags) rescale the images to a lower resolution to make the reconstruction faster. Some work also states that their have run at least part of their evaulations on lower resolutions #todo[cite!]. However, only CUMVS and MP-MVS provide a way to set the maximum image size externally, all the other methods' implementations compile this choice into the final program. A selected algorithm will be analysed further in #ref(<apd-mvs-analysis>).
 
 /*Generally, production-grade scanning systems produce a stream of images at lower resolutions than they are captured in ETH3D. Otherwise, 3D reconstruction software usually provide the ability to (either explicitly or implicitly through "quality" flags) rescale the images to a lower resolution to make the reconstruction faster. Many papers also state that they have run at least part of their evaulations on lower resolutions #todo[cite!]. Thus, apart from the native resolution, the benchmark defines two downsampled variants at half (3200px width) and at quarter (1600px width) the resolution of the original images (around 6200px width). To minimize loss of image quality while preparing the dataset, the benchmarking system handles the rescaling using JPEG q100 4:4:4 re-encoding with Hamming windows for anti-aliasing.*/
+
+==== Input conversion <sec:bench-converter>
+
+The lineage methods ship with a Python preprocessing script, referred to in this thesis as _the converter_, that turns the sparse reconstruction of a scene (COLMAP-formatted cameras, image poses, and triangulated sparse points) into the input format of the methods @yao2018_mvsnet. The image-level view selection is performed by the script following the strategy of COLMAP @acmh_acmm @colmap_mvs. The script is copied from fork to fork nearly unchanged.
+
+The image handling differs between the two variants. The ACM-lineage converter copies an image only if its file name ends in `.jpg`. The test is case-sensitive and the ETH3D files end in `.JPG`, so every image is decoded and re-encoded with the OpenCV default JPEG quality of 95 and chroma 4:2:2. CUMVS @fixstars2025cumvs ships no Python converter. Its initializer reads the ETH3D calibration directly, performs the same kind of view selection, and later reads the original ETH3D images themselves.
+
+The benchmark runs each method with the converter its authors shipped, without modifications. The converter runs in its own container before the method, and its duration is recorded as a separate phase (_Converter time_ in #ref(<table-timing-measurements>)).
 
 ==== Quality metrics
 
@@ -227,11 +237,11 @@ Resource utilization is also measured, including host RAM, disk I/O, CPU and GPU
 
 The algorithms are building on the same algorithmic blocks with the same or similar parameters to configure. All of them publish varying levels of quality and performance configurations in their papers. The thesis aims at a globally consistent setting for shared free-parameters and chooses to use any values from the papers where those values has been explicitly stated by the authors. These paper stated values have been cross-verified with their respective implementation. For the benchmarking, explicitly stated values in the papers will override any deviation in implementation defaults. Apart from these, the benchmarking runs the implementation's own shipped converters and parameters.
 
-No reconstruction method states the number of source images explicitly in its paper. Some define 10 source images for only their memory and runtime comparison without explaining the choice @apd @tsar @dvp. The implementations all agree on a maximum 20 sources per reference image, with the converter's view selection doing the rest. The shipped converter was mostly copied over from project to project, thus the selected views are generally byte-identical.
+No reconstruction method states the number of source images explicitly in its paper. Some define 10 source images for only their memory and runtime comparison without explaining the choice @apd @tsar @dvp. The implementations all agree on a maximum 20 sources per reference image, with the converter's view selection (#ref(<sec:bench-converter>)) doing the rest. The shipped converter was mostly copied over from project to project, thus the selected views are generally byte-identical.
 
 ==== Benchmark dimensioning <sec:benchmark-dimensioning>
 
-The MVS algorithms are non-deterministic, thus the benchmarking requires repeated execution to combat variance in results. To determine the number of necessary repeats during benchmarking prior work has to find the randomness factors, make sure that runs are independent, and estimate the variance. For this, the thesis carries out a dimensioning experiment to prepare the benchmarking run. During execution, uncontrolled variables can lead to bias in interpreting benchmarking results, while selecting the right number of repetitions improves the likelihood of finding true means through measured variance. The goals of dimensioning are exactly these: 1. eliminate the uncontrolled variables; 2. find the right number of repetitions to minimize the effect of random variables. @kalibera_rigorous_benchmarking
+The MVS algorithms are non-deterministic, thus the benchmarking requires repeated execution to combat variance in results. To determine the number of necessary repeats during benchmarking, prior work has to find the randomness factors, make sure that runs are independent, and estimate the variance. For this, the thesis carries out a dimensioning experiment to prepare the benchmarking run. During execution, uncontrolled variables can lead to bias in interpreting benchmarking results, while selecting the right number of repetitions improves the likelihood of finding true means through measured variance. The goals of dimensioning are exactly these: 1. eliminate the uncontrolled variables; 2. find the right number of repetitions to minimize the effect of random variables. @kalibera_rigorous_benchmarking
 
 
 *Randomness factors* In all methods, the GPU clock cycle counter seeds the random number generator. No method implementation allows for changing this. The random number generator drives the PatchMatch random initialization, the pixel-level view sampling, the depth refinement and RANSAC iterations, and indirectly everything else downstream such as the selected planar priors. Even if the work would fix the seed as a deviation from the original implementation, most algorithms would stay non-deterministic due to bugs and concurrency issues. The ACM-family PatchMatch kernel implementations have race conditions in the near sampling reads. DPE-MVS has the same type of race in its the edge-aware sampling. Furthermore, it reads uninitialized memory past the end of the image buffer. APD-MVS (and DPE-MVS due to copy-pasted code) leaves an uninitialized border row and column on odd image sizes. Meanwhile, HPM-MVS++ has multiple uninitialized values in the kernel. These are the types of bugs that the thesis claims as inherited problems.
@@ -261,7 +271,7 @@ The results for the 15 runs are shown in #ref(<fig-dimensioning-run-statistics>)
 
 A measurement bench is defined by a host system, a GPU and it's driver, and a docker image containing a pinned evaluator and forked methods with pinned commits.
 
-===== deviations (open-source forks) and environment
+==== deviations (open-source forks) and environment <sec:methodology-deviations>
 
 The measurement system consists of a fork from each measured lineage algorithm's open-source implementation. All forks contain a byte-identical bench timer that times the different phases of the algorithms. The bench timer can be enabled by an environment variable. The forks in the ACM lineage already synchronise after every CUDA kernel launch, so no commit was required for measuring kernel timings. CUMVS is asynchronous by default for its initialization kernels, so a commit was required to make these synchronous. The effects are negligible and they only added a measured 0.9 seconds to the wall runtime.
 
@@ -277,7 +287,7 @@ For controlling the experiments the 5070 GPU's streaming multiprocessor (SM) clo
 
 Controlling the host requires us to pin the containers to use CPU threads 0-7,16-23 because of the 9950X3D dual CCD design has 96 MB L3 cache for these 16 threads, while having only 32 MB for the other 16. A method that is only running on the latter would be in disadvantage compared to the others that run only on the former. Apart from this, the benchmark sets the CPU governor and the Energy Performance Preference (EPP) to performance mode. However, the CPU frequency scaling is left on as it didn't provide significant differences in wall time. This agrees with public reviews @gamersnexus2025_9950x3d reporting that the 9950X3D holds its boost clocks under sustained all-core load.
 
-== CUMVS(APD) baseline depiction
+== CUMVS(APD) baseline depiction <sec:methodology-cumvs-baseline>
 
 APD-MVS is one of the more recent approaches to help the patch-match window problem. The main contribution of this thesis is the integration of APD-MVS into CUMVS. #todo[slightly better intro once we have more content]
 
@@ -459,7 +469,7 @@ This section describes the integration process and the differences between the i
 
 ==== Image-level view selection
 
-CUMVS employs a slightly different strategy for view selection strategy than the converter tool that many MVS forks use. The two implementations use completely opposite ordering for the images because CUMVS indexes images in line order from the input file, while APD's converter indexes images by sorted image IDs. The integration uses CUMVS ordering because the ordering had no measured effect on the quality.
+CUMVS employs a slightly different strategy for view selection strategy than the converter tool that many MVS forks use (#ref(<sec:bench-converter>)). The two implementations use completely opposite ordering for the images because CUMVS indexes images in line order from the input file, while APD's converter indexes images by sorted image IDs. The integration uses CUMVS ordering because the ordering had no measured effect on the quality.
 
 ==== Depth-range calculation
 
@@ -489,7 +499,7 @@ Both implementations calculate the minimum and maximum allowed depth for each re
 
 ==== Re-encoded images
 
-The lineage's shipped COLMAP to MVS-Net converter script is generally copy-pasted from method to method. Due to a bug, this script copies only lowercase `.jpg` extension image files and considers all other extensions as images it needs to actively re-encode as JPEG. The ETH3D files are all uppercase `.JPG` thus the converter decodes and re-encodes the images using JPEG with default settings at 95 quality and 4:2:0 chroma subsampling. Note, that APD-MVS would always re-encode images as it pads those images so that it can process using the same resolution.  CUMVS ships with it's own conversion and avoids the re-encode problem altogether. However, we should expect results to be slightly different due to the higher information density of the used images.
+The lineage's shipped converter script has a re-encoding bug described in #ref(<sec:bench-converter>)). CUMVS ships with it's own conversion and avoids the re-encode problem altogether therefore the results are not byte-identical.
 
 ==== Device Compile flags
 
@@ -558,7 +568,7 @@ In total, input preprocessing, initialization kernel, propagation, and finalizat
 
 #kernel-breakdown-table
 
-== CUMVS(APD) performance optimizations <sec:perf>
+== CUMVS(APD) performance optimizations <sec:methodology-cumvs-apd-perf>
 
 This section describes the changes made to the original APD-MVS implementation to showcase some performance improvements that are simple yet effective. The work focuses on all four main contributors: the input loading, the anchor search, the propagation, and the finalization steps. As a result, the changes improvements together achieve 2x over the original implementation with zero or negligible effect on the quality.
 

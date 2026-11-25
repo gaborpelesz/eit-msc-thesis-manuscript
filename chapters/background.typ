@@ -79,7 +79,7 @@ Plane sweeping is one algorithm to calculate and aggregate the matching cost acr
 
 
 
-== PatchMatch Multi-View Stereo
+== PatchMatch Multi-View Stereo <sec:bg-pm-mvs>
 
 The thesis differentiates between two fundamentally different problems in MVS:
 - small-scene or object centric reconstructions

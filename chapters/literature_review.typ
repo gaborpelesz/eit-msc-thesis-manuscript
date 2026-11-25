@@ -108,7 +108,7 @@ ACMM introduces a multi-scale reconstruction through image pyramids. Here, the p
 
 3D planes can regularly define textureless surfaces, especially in environments with human-made structures. Based on this assumption, ACMP's planar-prior model @acmp triangulates low-cost points of a photometric run into planes that are used as priors for subsequent iterations next to the geomtric consistency . Later, ACMMP @acmmp combines all mentioned strategies, the planar-prior model and the multi-scale reconstruction, into a single system totalling 12 passes per image.
 
-== ACM-lineage
+== ACM-lineage <sec:literature_review-acm-lineage>
 
 A large range of research has followed the introduction of the ACM-family methods. Partially because of the developing benchmarks such as ETH3D @eth3d_dataset and Tanks and Temples @tanks_and_temples_dataset, but more importantly due to their highly accessible open-source implementations. #ref(<fig-lineage>) shows the lineage of algorithms that this thesis audits. It is important to state that many other MVS algorithms exist. However, not many of these other algorithms feature open-source implementations while being top-performers on the ETH3D benchmark.
 
