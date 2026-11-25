@@ -191,7 +191,7 @@
   lab(_cam-j.c, 0, -0.28, _t($C_j$))
   lab(_lerp(_cam-r.c, _cam-j.c, 0.5), 0, -0.2, _t(fill: _soft, size: 7pt)[baseline])
   lab(_proj(_cam-r, _x), -0.3, 0.12, anchor: "east", _t(fill: _ray, $p$))
-  lab(_x, 0.16, 0.1, anchor: "west", _t(fill: _ray, $X$))
+  lab(_x, 0.16, 0.1, anchor: "west", _t(fill: _ray, $upright(bold(X))$))
   lab(_on-ray(_candidates.at(0)), -0.14, 0.05, anchor: "east", _t(fill: _ray, size: 7pt)[viewing ray of $p$])
   lab(epi-b, 0.1, 0.05, anchor: "west", _t(fill: _epi, size: 7pt)[epipolar\ line of $p$])
 })
@@ -220,7 +220,7 @@
     _t[(b) the patch around $p$ and the patches around the candidates in $I_j$],
   ),
   caption: flex-caption(
-    [Epipolar geometry and matching. (a) The pixel $p$ of the reference image $I_r$ fixes only a viewing ray: the scene point $X$ may lie anywhere along it (circles). Seen from a second camera $C_j$, the ray appears as a line in $I_j$, the epipolar line of $p$, so the pixel that corresponds to $p$ has to be searched only along this line. (b) The search compares the patch around $p$ with the patch around each candidate on the line and keeps the candidate whose patch is the most similar.],
+    [Epipolar geometry and matching. (a) The pixel $p$ of the reference image $I_r$ fixes only a viewing ray: the scene point $upright(bold(X))$ may lie anywhere along it (circles). Seen from a second camera $C_j$, the ray appears as a line in $I_j$, the epipolar line of $p$, so the pixel that corresponds to $p$ has to be searched only along this line. (b) The search compares the patch around $p$ with the patch around each candidate on the line and keeps the candidate whose patch is the most similar.],
     [Epipolar geometry and matching along the epipolar line],
   ),
 ) <fig-epipolar>]

@@ -121,7 +121,7 @@
 #let parallax-figure = [#figure(
   _canvas,
   caption: flex-caption(
-    [The parallax effect. (a) Two cameras, $C_1$ and $C_2$, observe a near and a far object from the two ends of a baseline. Perspective rays (red solid, blue striped) are drawn from their optical center through the image plane to the observed object point. (b) Between the two images the near object is displaced more than the far one: the displacement is inversely proportional to the distance of the object from the cameras.],
+    [The parallax effect. (a) Two cameras, $C_1$ and $C_2$, observe a near and a far object from the two ends of a baseline. Perspective rays (red solid, blue striped) are drawn from their optical center through the image plane to the observed object point. (b) Between the two images the near object is displaced more than the far one: the displacement (called _disparity_ in pixels) is inversely proportional to the distance of the object from the cameras (_depth_).],
     [The parallax effect],
   ),
 ) <fig-parallax>]
