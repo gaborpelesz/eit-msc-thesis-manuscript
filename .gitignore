@@ -4,6 +4,7 @@ build/
 # generated figures
 generated/results-*
 generated/figures/
+generated/dimensioning/derived/
 generated/baseline-run/derived/
 generated/perf-4.3/derived/
 generated/bench-5.2/derived/

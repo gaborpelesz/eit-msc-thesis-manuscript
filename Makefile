@@ -8,8 +8,9 @@ ifneq ($(REV),)
 TYPSTFLAGS += --input rev="rev $(REV)"
 endif
 
-# Figures rendered from checked-in data by checked-in scripts (needs uv).
-FIGURES = generated/figures/dimensioning_run_statistics.png
+# Data file of the dimensioning figure (chapters/figures/dimensioning-run-statistics.typ), written from the
+# checked-in CSV by a checked-in script (needs uv, which installs numpy and scipy); not committed.
+DIM_JSON = generated/dimensioning/derived/run-statistics.json
 
 # Data files that chapters read with json(): the baseline run of production APD-MVS. They are
 # generated from the checked-in run files by checked-in scripts (needs python3, standard library
@@ -37,11 +38,11 @@ BENCH = generated/bench-5.2
 BENCH_JSON = $(BENCH)/derived/numbers-bench.json
 BENCH_FIGURES = $(addprefix $(BENCH)/derived/figures/bench-,$(addsuffix .svg,tradeoff scenes phases memory repeatability cumvs-apd))
 
-DATA = $(STAGE_JSON) $(PASS_JSON) $(KERNEL_JSON) $(PERF43_JSON) $(BENCH_JSON) $(BENCH_FIGURES)
+DATA = $(DIM_JSON) $(STAGE_JSON) $(PASS_JSON) $(KERNEL_JSON) $(PERF43_JSON) $(BENCH_JSON) $(BENCH_FIGURES)
 
 .PHONY: build watch clean figures
 
-figures: $(FIGURES) $(DATA)
+figures: $(DATA)
 
 $(STAGE_JSON): $(BASELINE)/scripts/stage_timings.py $(BASELINE)/scripts/run_files.py $(BASELINE_RAW)/phases.txt $(BASELINE_RAW)/context.txt
 	python3 $< --phases $(BASELINE_RAW)/phases.txt --context $(BASELINE_RAW)/context.txt --run $(BASELINE_RUN) --out $@
@@ -66,7 +67,7 @@ $(BENCH)/derived/figures/bench-cumvs-apd.svg: $(BENCH)/scripts/fig_cumvs_apd.py 
 $(BENCH)/derived/figures/bench-%.svg: $(BENCH)/scripts/fig_%.py $(BENCH)/scripts/style.py $(BENCH_JSON)
 	uv run $<
 
-generated/figures/dimensioning_run_statistics.png: generated/dimensioning/scripts/dimensioning_run_statistics.py generated/dimensioning/data/runs-dev2.csv
+$(DIM_JSON): generated/dimensioning/scripts/dimensioning_run_statistics.py generated/dimensioning/data/runs-dev0.csv
 	uv run $<
 
 build: figures

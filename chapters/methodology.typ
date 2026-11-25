@@ -2,6 +2,7 @@
 #import "figures/acmm-sampling.typ": *
 #import "figures/kernel-breakdown.typ": kernel-breakdown-table
 #import "figures/run-breakdown.typ": run-breakdown-figure
+#import "figures/dimensioning-run-statistics.typ": dimensioning-run-statistics-figure
 #import "figures/perf-input-regions.typ": perf-input-regions-figure
 #import "figures/perf-anchor-kernels.typ": perf-anchor-kernels-figure
 #import "figures/perf-anchor-spokes.typ": perf-anchor-spokes-figure
@@ -244,7 +245,7 @@ The MVS algorithms are non-deterministic, thus the benchmarking requires repeate
 *Run independence and variance estimation*: for proving the independence of runs and finding out the variance to calculate the number of repetitions, a dimensioning @kalibera_rigorous_benchmarking has been run 15 times per method on three different scenes: *pipes*, *meadow*, and *office*. The total of 450 runs were scheduled in a randomized order. Next to wall time, F1 score is also included in the dimensioning as a target measurement because the non-deterministic factors alter the results.
 
 #figure(
-  image("../generated/figures/dimensioning_run_statistics.png", width: 100%),
+  dimensioning-run-statistics-figure,
   caption: [Run statistics of the dimensioning experiment. The lag-1 plots' correlations show that generally the runs are independent of each other both in terms of runtime and quality. The compacted sequence plots show the mean and variance of the runs.],
 ) <fig-dimensioning-run-statistics>
 
