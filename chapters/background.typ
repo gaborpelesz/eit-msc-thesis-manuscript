@@ -1,6 +1,7 @@
 #import "../template/elteikthesis.typ": *
 #import "figures/parallax.typ": parallax-figure
 #import "figures/epipolar.typ": epipolar-figure
+#import "figures/plane-sweep.typ": plane-sweep-figure
 
 = Background <ch-background>
 
@@ -28,7 +29,15 @@ The stereo correspondence problem can then be stated as follows. For a pixel $p$
 
 $ hat(q)(p) = op("arg min", limits: #true)_(q in l_j (p)) rho_j (p, q). $ <eq:stereo-correspondence2>
 
-== Multi-View Stereo
+where $rho_j (p, q)$ denotes the matching cost between $p$ and a candidate $q$, commonly defined as the Sum of Squared Differences (SSD) of the intensities in their surrounding windows
+
+$ rho_j (p, q) = sum_(delta in cal(W)) (I_r (p + delta) - I_j (q + delta))^2 $ <eq:ssd>
+
+where $cal(W)$ is the set of pixel offsets of a square window centred on the origin, e.g., $cal(W) = {-k, dots, k}^2$ for a $(2k+1) times (2k+1)$ window. Since $q$ generally lies at a sub-pixel position, $I_j (q + delta)$ is obtained by interpolation.
+
+The result of stereo matching is commonly stored as a _disparity map_. In a _rectified_ image pair, where epipolar lines coincide with image rows, the _disparity_ $d$ of a pixel $p$ is the horizontal offset between $p$ in $I_r$ and its match $hat(q)(p)$ in $I_j$. Disparity is the measured parallax of the observed scene point $X$.  Alternatively storing a _depth map_ is possible, in which each pixel $p$ holds the depth of $X$ along the optical axis of the reference camera. Notice, that disparity $d$ is inversely proportional to depth, $Z = f B \/ d$, where $f$ is the focal length in pixels and $B$ the baseline.
+
+== Multi-View Stereo <sec:bg-mvs>
 
 _Multi-View Stereo_ (MVS) extends the two-view problem to multiple images, and it is the focus of this thesis. Although two views suffice for dense depth estimation @scharstein2002_taxonomy @tosi2025_deep_stereo_survey, incorporating additional views offer several advantages. First, additional views mitigate occlusion: a surface point that is visible in the reference image but hidden by a foreground object in another. These points are frequently visible in a third view therefore a correspondence can still be established @furukawa2015_mvs_tutorial @colmap_mvs. Second, redundant observations improve precision. Image noise, the sampling of the sensor, and other contributing factors perturb every measurement. When the matching costs of several image pairs are accumulated, the variance of the depth estimate decreases with each additional pair @okutomi1993_multibaseline. Note that systematic errors, such as inaccurate camera calibration, are not averaged out in this way and continue to bound the attainable accuracy. Third, additional views reduce _matching cost ambiguity_, a failure that can happen on repetitive textures creating false matches. A two-view matching cost along the epipolar line may exhibit several comparable minima #todo[may need figure or explanation or reference to other section], while a wrong depth hypothesis rarely remains photo-consistent across multiple views @okutomi1993_multibaseline. Weakly textured regions, by contrast, remain ambiguous regardless of the number of views. Finally, multiple views relax the trade-off governed by the _baseline_, the effective distance between the optical centers that define the triangulation angle (#ref(<fig-epipolar>)). Relative to scene depth, a wide baseline yields a large triangulation angle and therefore precise depth, but it enlarges the disparity range that must be searched @okutomi1993_multibaseline and makes the same surface appear more dissimilar across views @furukawa2015_mvs_tutorial. Therefore matching becomes harder and false matches more likely. A narrow baseline has the opposite effect. Combining near and distant neighbours overcomes this trade-off between precision and correctness @okutomi1993_multibaseline.
 
@@ -58,9 +67,23 @@ The former considers relatively small-scale indoor scanning, such as rooms, or s
 
 The main of focus of this thesis is an algorithm family called PatchMatch MVS, which became the dominant approach for large-scale complex scenes. #ref(<ch-litreview>) analysis the history of 3D reconstruction algorithms, while this section's goal is to explain PatchMatch without an in-depth review of the long history of its predecessors.
 
+Classical stereo matching algorithms perform the following steps: matching cost computation, cost aggregation from multiple views, disparity computation/optimization, and disparity refinement. First, matching cost is calculated for all views against the reference (#ref(<eq:ssd>)). Then, these matching costs are combined together to give the aggregated cost $rho (p, q)$. To estimate a depth map, every depth hypothesis needs to be tested for every pixel. The cost computation calculates a cost for all hypotheses $O(W H D)$ and stores them in a cost volume. In this case the depth-range on which the cost is computed is bounded. The cost volume quickly grows by introducing higher resolution images, or by requiring higher precision depth estimates at a larger range. Local matching methods define a cost to compare candidate correspondences using a photometric error that can be minimized across the epipolar line. This photo-consistency is measuring how similar two pixels are given their surrounding area (as described in #ref(<sec:bg-mvs>)). However, the global minimum of the cost profile across the epipolar line can falsely lead to an incorrect correspondence match. Global matching methods extend to consider the whole cost volume to include an objective over all pixels. They enforce properties like smoothness between neighboring pixels, based on the assumption that in general surfaces are piecewise smooth. While global matching works well in a two-view case @scharstein2002_taxonomy, these methods don't scale to multiple images due to their high computational and high memory needs in large number of high-resolution images. @furukawa2010_cmvs @gipuma
+
+Storing the cost volume, at least partially, is necessary to improve on the winner-takes-all approach. It also requires to define the precision on the depth-range for the optimization. The same problem arises in modern learned MVS approaches @apd, where the cost volume is calculated by a neural network using learned features and regularisation. Even though much progress has been made in order to reduce the memory requirements of these approaches, methods such as @yao2019_rmvsnet @gu2020_casmvsnet can still only compute the depth at a lower resolution or over a low precision depth-range, and has to fine-tune these through costly refinement approaches.
+
 === Plane-sweeping stereo
 
-=== Fronto-parallel bias (Why patchamtch)
+
+Plane sweeping is one algorithm to calculate and aggregate the matching cost across multiple views @yang2003_realtime_stereo_gpu @collins1996_space_sweep. The method sweeps a plane, parallel to the reference image, through scene space with discrete steps (#ref(<fig-plane-sweep>)) in a depth range. For the current plane $Pi_d$ at depth $d$, a pixel $p$ along with it's matching window is back-projected onto the plane along its viewing ray and from there projected into the source images $I_j in S$. Notice, that doing this for every pixel is the same as projecting each source image onto the plane and viewing them from the reference camera (an optimization that maps well to modern GPUs @gallup2007_plane_sweeping). The photometric cost $rho(Pi_d, p)$ calculated is an entry of the _cost volume_ for $p$ at depth $d$. Every other plane gives another candidate on the ray (red circles), which falls elsewhere on the epipolar line of $p$ (blue circles). In a winner-takes-all approach, the depth with the lowest cost is kept and the cost volume recorded (local matching, see #ref(<sec:lit-mvs-approaches>)).
+
+#place(auto, float: true, clearance: 22pt, plane-sweep-figure)
+
+
+
+
+=== Improve slanted surface reconstruction (PatchMatch)
+
+Sweeping a plane parallel to the reference image assumes a surface also parallel to the reference image. This leads to _fronto-parallel bias_ where the slanted surfaces from the reference view are skewed and create ambiguous matches @gallup2007_plane_sweeping @gipuma. Therefore, several sweep directions can help improve slanted surface reconstruction @gallup2007_plane_sweeping. 
 
 Exhaustive matching algorithms that require a large portion of the cost volume and thus their memory usage is significant. Another limitation of such methods is the fixed discrete depth range. #todo[cite in the form of Bleyer et al. [x]]#cite(<bleyer2011_patchmatch_stereo>, form: "normal") introduced PatchMatch Stereo, an algorithm that estimates a 3D plane at every pixel of a reference image using a randomized iterative approach. The 3D plane esimation is analogous to plane sweeping from infinite directions. It reduces the fronto-parallel bias and directly improves slanted surface reconstruction. The algorithm solves the problem of searching for such planes with an approximate nearest neighbor search across the epipolar line, using PatchMatch @barnes2009_patchmatch. The search space of PatchMatch Stereo is a continuous space, allowing subpixel disparities in the formulation which efficiently describe slanted surfaces. Note, that the algorithm only has to store a small number of current hypotheses and thus significantly reduces the required memory. Therefore, GPU implementations are also more feasible.
 
@@ -76,7 +99,6 @@ Exhaustive matching algorithms that require a large portion of the cost volume a
 */
 
 
-=== PatchMatch algorithm formulation
 
 Given a reference image $I_r$ and N source views $I_s$ the goal is to find a 3D plane for each pixel $p$ in the reference image. 
 The algorithm starts by randomly initializing the current planes in all pixels. The random initialization is controlled so that planes lie within the range of allowed values in the current camera and view configuration. In each iteration, the algorithm goes through all pixels of $I_r$, from top-left to bottom-right, then backwards. For each pixel $p$ it compares the cost of it's spatial neighbors' planes with the cost of it's current plane estimate and updates its plane if the cost is lower using the plane from any of its neighbor. Thus, the algorithm propagates good hypotheses throughout the image, assuming that depth maps are piecewise smooth. After top-to-bottom propagation, the algorithm does a backwards pass bottom-to-top. It does 2-3 full passes over the reference image, which already yields good results. Finally, the algorithm refines the plane estimates by applying small random perturbation to the current estimates and taking these newly generated hypotheses if they reduce the matching cost. @bleyer2011_patchmatch_stereo
