@@ -36,6 +36,7 @@
   logo: image("images/elte_cimer_szines.pdf"),
 
   lang: "en",
+  toc: false, // the contents are placed below, after the abstract
 
   // Topic declaration page (mandatory) - can also be attached instead
   // declaration: include-pdf(read("topicdeclaration.pdf", encoding: none)),
@@ -43,6 +44,9 @@
 
 // List of todos (not in the final document)
 // #list-of-todos()
+
+#include "chapters/abstract.typ"
+#table-of-contents()
 
 // Main content
 
