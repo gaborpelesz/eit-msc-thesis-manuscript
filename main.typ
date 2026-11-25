@@ -43,7 +43,7 @@
 )
 
 // List of todos (not in the final document)
-// #list-of-todos()
+#list-of-todos()
 
 #include "chapters/abstract.typ"
 #table-of-contents()
