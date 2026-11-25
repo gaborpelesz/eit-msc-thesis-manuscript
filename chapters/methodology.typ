@@ -460,7 +460,7 @@ APD-MVS @apd is an extension for ACMM @acmh_acmm focusing on textureless regions
 
 === APD-MVS integration into CUMVS <sec:apd-cumvs>
 
-This section describes the integration process and the differences between the integrated and the original performance of APD-MVS. The work starts by integrating APD-MVS as a propagation backend into CUMVS, resulting in _CUMVS(APD)_. CUMVS already supports multiple backends and implements Gipuma- and ACMH-style propagation and allows for switching between the backends using a Command-Line Interface (CLI) flag. The first goal of the thesis is to achieve a seemless integration where the F1-score results are similar to the original APD-MVS implementation.
+This section describes the integration process and the differences between the integrated and the original performance of APD-MVS. The work starts by integrating APD-MVS as a propagation backend into CUMVS, resulting in _CUMVS(APD)_. CUMVS already supports multiple backends and implements Gipuma- and ACMH-style propagation and allows for switching between the backends using a Command-Line Interface (CLI) flag. The first goal of the thesis is to achieve a seemless integration where the F1-score results are intact compared to the original APD-MVS implementation.
 
 
 ==== Image-level view selection
@@ -566,9 +566,9 @@ In total, input preprocessing, initialization kernel, propagation, and finalizat
 
 == CUMVS(APD) performance optimizations <sec:methodology-cumvs-apd-perf>
 
-This section describes the changes made to the original APD-MVS implementation to showcase some performance improvements that are simple yet effective. The work focuses on all four main contributors: the input loading, the anchor search, the propagation, and the finalization steps. As a result, the changes improvements together achieve 2x over the original implementation with zero or negligible effect on the quality.
+This section describes the changes made to the APD-MVS integration from #ref(<sec:apd-cumvs>), to showcase performance improvements that are simple yet effective. The work focuses on all four main contributors to execution time: the input loading, the anchor search, the propagation, and the finalization steps. As a result, the improvements together achieve 2x over the baseline with zero or negligible effect on the quality.
 
-Note, that the analysis of the baseline and the improvements were running on a development machine with RTX 5070 Ti (16GB), and an AMD Ryzen 9 5900XT, both with unlocked clocks. However, final benchmarking results will be measured on the same benchmarking configuration as described in #ref(<bench-system>). All development runs used ETH3D _pipes_ at native resolution but the effects were verified on _office_ during evaluations. For evaluations the same bench timer measurements were used as in #ref(<apd-mvs-analysis>). For determinism, the seeds were controlled where possible instead of taking the GPU clock (#ref(<bench-system>)). To control changes that might alter the quality, they are classified into three exactness classes: 1. identical (*E0*); 2. identical up to floating-point rounding (*E1*), 3. results change (*E2*).
+Note, that the analysis of the baseline and the improvements were running on a development machine with RTX 5070 Ti (16GB), and an AMD Ryzen 9 5900XT, both with unlocked clocks. However, final benchmarking results in #ref(<ch-results>) are measured on the same benchmarking configuration as described in #ref(<bench-system>). All development runs used ETH3D _pipes_ at native resolution while the changes were verified on _office_ during evaluations. For evaluations the same bench timer measurements were used as in #ref(<apd-mvs-analysis>). For determinism, the seeds were controlled where possible instead of taking the GPU clock (#ref(<bench-system>)). The changes are classified into three exactness classes to report deviations in quality scores: 1. identical (*E0*); 2. identical up to floating-point rounding (*E1*), 3. results change (*E2*).
 
 === Hiding the input loading and data transfers <sec:perf-input>
 
