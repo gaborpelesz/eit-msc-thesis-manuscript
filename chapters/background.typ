@@ -82,21 +82,18 @@ Storing the cost volume, at least partially, is necessary to improve on the winn
 
 == PatchMatch Multi-View Stereo <sec:bg-pm-mvs>
 
+The main focus of this thesis is an algorithm family called PatchMatch MVS, which became the dominant approach for large-scale complex scenes @colmap_mvs @gipuma @apd @acmh_acmm @acmmp @acmp @eth3d_dataset @dpe @dvp @dvp_plus_plus @apde @zhou2021_dp_mvs. #ref(<ch-litreview>) analysis the history of 3D reconstruction algorithms, while the goal of this section is to introduce PatchMatch without an in-depth review of the long history of its predecessors.
+
 The thesis differentiates between two fundamentally different problems in MVS:
-- small-scene or object centric reconstructions
-- large-scale reconstructions
+- small-scene or object centric reconstructions #todo[cite some object centric paper]
+- large-scale reconstructions @colmap_mvs
 The former considers relatively small-scale indoor scanning, such as rooms, or scanning objects, usually in more controlled environments (e.g., objects on a turn table). On the other hand, accurate large-scale outdoor scene reconstructions pose several challenges over these typical cases. One of these challenges is that objects are regularly found far away from the imaging device, requiring high-resolution imagery during MVS processing for fine details. Another challenge is that in many cases a large number of images are required to cover the scene due to the size of the imaged scenes compared to the distance from them being imaged. Examples are reconstructing outdoor urban areas, drone-based mapping solutions, or reconstructing from large collections of unstructured internet photography.
-
-The main of focus of this thesis is an algorithm family called PatchMatch MVS, which became the dominant approach for large-scale complex scenes. #ref(<ch-litreview>) analysis the history of 3D reconstruction algorithms, while this section's goal is to explain PatchMatch without an in-depth review of the long history of its predecessors.
-
 
 === Improved slanted surface reconstruction using PatchMatch
 
-#todo[needs work]
+Sweeping a plane parallel to the reference image assumes a surface also parallel to the reference image. This leads to _fronto-parallel bias_ where slanted surfaces appear skewed in the reference view while the matching cost is calculated on the same window size as for other pixels. These over-extended windows create ambiguous matches @gallup2007_plane_sweeping @gipuma.
 
-Sweeping a plane parallel to the reference image assumes a surface also parallel to the reference image. This leads to _fronto-parallel bias_ where the slanted surfaces from the reference view are skewed and create ambiguous matches @gallup2007_plane_sweeping @gipuma. Therefore, several sweep directions can help improve slanted surface reconstruction @gallup2007_plane_sweeping. 
-
-Exhaustive matching algorithms that require a large portion of the cost volume and thus their memory usage is significant. Another limitation of such methods is the fixed discrete depth range. #cite(<bleyer2011_patchmatch_stereo>, form: "prose") introduced PatchMatch Stereo, an algorithm that estimates a 3D plane at every pixel of a reference image using a randomized iterative approach. The 3D plane esimation is analogous to plane sweeping from infinite directions. It reduces the fronto-parallel bias and directly improves slanted surface reconstruction. The algorithm solves the problem of searching for such planes with an approximate nearest neighbor search across the epipolar line, using _PatchMatch_ @barnes2009_patchmatch. The search space of PatchMatch Stereo is a continuous space, allowing subpixel disparities in the formulation which efficiently describe slanted surfaces. Note, that the algorithm only has to store a small number of the current hypotheses and thus significantly reduces the required memory. Therefore, GPU implementations are also more feasible.
+Introducing several plane sweeping directions has been demonstrated to improve slanted surface reconstruction @gallup2007_plane_sweeping. Following this observation, _PatchMatch Stereo_ #cite(<bleyer2011_patchmatch_stereo>) is an algorithm that estimates a 3D plane at every pixel of a reference image using a randomized iterative approach. The 3D plane esimation is analogous to plane sweeping from infinite directions, therefore, it reduces the fronto-parallel bias and directly improves slanted surface reconstruction. The algorithm solves the problem of searching for such planes with an approximate nearest neighbor search across the epipolar line, using _PatchMatch_ @barnes2009_patchmatch. The search space of PatchMatch Stereo is a continuous space, allowing any subpixel disparity/depth in the formulation which efficiently describes slanted surfaces. Note, that due to its iterative nature, the algorithm only has to store a small number of the current hypotheses and thus significantly reduces the required memory. Besides, the reduced memory makes GPU implementations more feasible.
 
 /*
 - patch match history:
@@ -114,7 +111,7 @@ Exhaustive matching algorithms that require a large portion of the cost volume a
 Given a reference image $I_r$ and N source views $I_s$ the goal is to find a 3D plane for each pixel $p$ in the reference image. 
 The algorithm starts by randomly initializing the current planes in all pixels. The random initialization is controlled so that planes lie within the range of allowed values in the current camera and view configuration. In each iteration, the algorithm goes through all pixels of $I_r$, from top-left to bottom-right, then backwards. For each pixel $p$ it compares the cost of it's spatial neighbors' planes with the cost of it's current plane estimate and updates its plane if the cost is lower using the plane from any of its neighbor. Thus, the algorithm propagates good hypotheses throughout the image, assuming that depth maps are piecewise smooth. After top-to-bottom propagation, the algorithm does a backwards pass bottom-to-top. It does 2-3 full passes over the reference image, which already yields good results. Finally, the algorithm refines the plane estimates by applying small random perturbation to the current estimates and taking these newly generated hypotheses if they reduce the matching cost. @bleyer2011_patchmatch_stereo
 
-#todo[needs work]
+#todo[needs work and a figure as well. Consider moving some of the explanations from methodology to here]
 - The cost for a pixel and its plane is defined as follows...
 
 One of the core problems of early PatchMatch formulations is the sequential nature of the propagation scheme. Some work has parallelized PatchMatch across rows and columns of images to improve the performance #todo[cite]. @gipuma introduces the checkerboard propagation to parallelize the algorithm which maps well to the multi-core GPU architecture. Their diffusion-like propagation works by calculating the costs and best candidates for half of the pixels at each iteration, and receiving plane candidates from a pixel's 4-neighborhood.
