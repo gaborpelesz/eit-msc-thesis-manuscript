@@ -199,7 +199,7 @@
 #let plane-sweep-figure = [#figure(
   _canvas,
   caption: flex-caption(
-    [Plane-sweeping stereo. A plane parallel to the reference image $I_r$ is moved through the scene in discrete depth steps between $d_min$ and $d_max$.],
+    [Plane-sweeping stereo. A plane parallel to the reference image $I_r$ is moved through the scene in discrete depth steps between $d_min$ and $d_max$. Pixel $p$ in $I_r$ and $Pi_d$ define the projection into the source views $I_1$ and $I_2$, where matching cost is calculated using @eq:ssd by walking the warped neighborhood window of $p$ in $I_1$ and $I_2$, and aggregating the results. Finding the lowest aggregated cost for $p$ across all planes gives depth $d_p$.],
     [Plane-sweeping stereo],
   ),
 ) <fig-plane-sweep>]
