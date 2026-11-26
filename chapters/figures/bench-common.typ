@@ -34,6 +34,8 @@
 #let sci(s, digits) = [#signed(s.mean, digits) \[#signed(s.lo, digits), #signed(s.hi, digits)\]]
 // half-width of an interval as ± in the unit of the mean
 #let hw(s, digits) = [#sym.plus.minus#fix(s.hw, digits)]
+// a memory size recorded in MiB, printed in GiB (1 GiB = 1024 MiB); the unit is written after it
+#let gib(mib, digits: 2) = fix(mib / 1024, digits)
 // seconds as hours
 #let hours(s, digits) = [#fix(s / 3600, digits)~h]
 

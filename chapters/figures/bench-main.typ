@@ -19,7 +19,7 @@
   comp: (a => a.comp_2cm.mean, 3, calc.max),
   time: (a => a.wall_total_s.mean, 0, calc.min),
   x:    (a => a.x_cumvs, 1, calc.min),
-  mem:  (a => a.peak_dev_mib, 0, calc.min),
+  mem:  (a => a.peak_dev_mib / 1024, 2, calc.min),
   kj:   (a => a.energy_total_kj, 0, calc.min),
 )
 #let _best = {
@@ -36,7 +36,7 @@
   let a = arm(key)
   (lab(key), _b(a, "f1", fix(a.f1_2cm.mean, 3)), _b(a, "acc", fix(a.acc_2cm.mean, 3)), _b(a, "comp", fix(a.comp_2cm.mean, 3)),
    _b(a, "time", [#big(a.wall_total_s.mean) #hw(a.wall_total_s, 0)]), _b(a, "x", times(a.x_cumvs, 1)),
-   _b(a, "mem", big(a.peak_dev_mib)), _b(a, "kj", big(a.energy_total_kj)))
+   _b(a, "mem", gib(a.peak_dev_mib)), _b(a, "kj", big(a.energy_total_kj)))
 } else {
   (lab(key), table.cell(colspan: 7, align: center, text(fill: luma(45%), style: "italic")[no runs]))
 }
@@ -54,7 +54,7 @@
       stroke: none,
       inset: (x: 4pt, y: 3pt),
       table.hline(stroke: 0.8pt),
-      table.header([*Method*], [*F1*], [*Acc.*], [*Comp.*], [*Time (s)*], [*Time #sym.times baseline (CUMVS)*], [*Peak GPU mem. (MiB)*], [*Energy (kJ)*]),
+      table.header([*Method*], [*F1*], [*Acc.*], [*Comp.*], [*Time (s)*], [*Time #sym.times baseline (CUMVS)*], [*Peak GPU mem. (GiB)*], [*Energy (kJ)*]),
       table.hline(stroke: 0.5pt),
       table.cell(colspan: 8, inset: (top: 5pt, bottom: 2pt), emph[Capped at 3200 px]),
       .._row(k.acmh), .._row(k.acmp), .._row(k.acmm), .._row(k.acmmp), .._row(k.mp), .._row(k.hpm), .._row(k.cumvs), .._row(k.ours3200),
