@@ -1,5 +1,7 @@
 = Conclusion
 
+- MVS algorithms are complex intertwined, and prone to ship with bugs. (section 4.1.1 benchmark dimensioning)
+
 - most of the runtime for the algorithm implementations is unnecessary work, and the thesis proves that there is much room for improvement for all methods (all methods because everything derives from the same lineage, improvements can be done even on the core pieces of the systems that are shared among all)
 - only quantitative analysis, and qualitative would be interesting as well. ETH3D benchmark is biased towards its laser scanner's accuracy and completeness, and on specific scenes (playground) parts of the scene are not well covered with ground-truth. Also methods are not punished for being eager with their reconstruction around areas where there is no ground-truth.
 
