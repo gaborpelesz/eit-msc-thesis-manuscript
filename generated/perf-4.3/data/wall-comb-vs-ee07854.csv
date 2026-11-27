@@ -1,0 +1,4 @@
+seed,cand_run,cand_md5,cand_span_s,cand_f1_1,cand_f1_2,cand_f1_5,ref_run,ref_md5,ref_span_s,ref_f1_2
+1,s43-class-comb-plain-s1,2459e835,530.00,0.818861,0.875743,0.922620,s43-prop-8bit-plain-s1,ed27f065,541.50,0.875865
+2,s43-class-comb-plain-s2,e36f6951,532.60,0.819267,0.876480,0.923280,s43-prop-8bit-plain-s2,aba036db,538.70,0.876376
+3,s43-class-comb-plain-s3,ae059518,529.80,0.820867,0.876662,0.922687,s43-prop-8bit-plain-s3,581b435c,538.80,0.876571

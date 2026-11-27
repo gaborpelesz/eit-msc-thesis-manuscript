@@ -1,0 +1,6 @@
+seed,cand_run,cand_md5,cand_span_s,cand_f1_1,cand_f1_2,cand_f1_5,ref_run,ref_md5,ref_span_s,ref_f1_2
+1,s43-class-c2-plain-s1,2739026d,608.70,0.818352,0.875197,0.921735,s43-prop-comb-cu2-plain-s1,e5fa24d4,615.00,0.875308
+2,s43-class-c2-plain-s2,33cb236c,608.70,0.819832,0.875844,0.922163,s43-prop-comb-cu2-plain-s2,1dd9ed41,615.40,0.875899
+3,s43-class-c2-plain-s3,1efa74f2,608.30,0.820141,0.876624,0.922749,s43-prop-comb-cu2-plain-s3,f3170436,615.20,0.876594
+4,s43-class-c2-plain-s4,a3dbd1e7,608.70,0.820814,0.877883,0.924380,s43-prop-comb-cu2-plain-s4,7dc9623c,614.60,0.878108
+5,s43-class-c2-plain-s5,22b4f34d,607.90,0.819361,0.876594,0.922688,s43-prop-comb-cu2-plain-s5,207a8914,614.20,0.876591

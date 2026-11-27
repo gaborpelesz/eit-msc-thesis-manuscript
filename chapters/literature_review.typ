@@ -80,16 +80,22 @@
   placement: auto,
 ) <fig-lineage>]
 
-= Literature review
+= Literature review <ch-litreview>
 
-This chapter describes the PatchMatch lineage of MVS algorithms that followed Gipuma @gipuma, COLMAP @colmap_mvs, and ACMH @acmh_acmm. The lineage is a set of MVS algorithms that build directly on top of these foundational methods, including references to them as baselines in their paper, refining these approaches, providing ablation studies, and by descending directly from their open-source implementations.
 
 /*
 - multiple hypotheses idea was coming from #todo[cite campbell2008_multiple_hypotheses.pdf], they established a Markov-Random Field (MRF) formulation allowing for multiple depth hypotheses per point including an unknown state. This to fight Ambiguous matching along the epipolar line.
 */
 
+Several taxonomies exist to classiy the approaches of MVS @seitz2006_mvs_evaluation @gipuma. First, there are two major scene representations of 3D: points and surfaces. Voxel-based reconstructions discretise the scene into a voxel grid volume @steinbrucker2014_volumetric_mapping and optionally fit meshes to extract surfaces @seitz1999_voxel_coloring. Their accuracy is bounded by the voxel grid's resolution. Large-scale high-resolution reconstruction is difficult due to the #todo[needs review]cubic memory growth in the grid resolution  @shen2013_patchmatch @furukawa2015_mvs_tutorial. Surface evolution methods start from an initial geometric estimate of the imaged 3D object and iteratively deform the representation (such as a mesh, or a visual hull) to maximize photometric-consistency @zaharescu2007_transformesh @furukawa2006_carved_visual_hulls @hernandez2004_silhouette_stereo_fusion. These methods require good initialization for the surfaces which doesn't scale well for larger scenes. Implicit geometry representations, such as level-sets, iteratively evolve a volumetric surface function until it's projection minimizes photometric error and added geometric constraints (e.g., smooth curves). More modern approaches use learned Signed Distance Functions for an implicit representation @park2019_deepsdf.
 
-== Multi-Hypothesis Joint View Selection (ACMH)
+Depth map-based methods go through all images and compute a depth map for each of them individually. These depth maps are then fused together into a 3D point cloud eventually yielding a point representation @gipuma. The images are independent from each other thus the work can be parallelized without the need for updating a global volume. This formulation scales to a very large number of images and therefore became one of the most dominant choices when it comes to large-scale scenes @furukawa2015_mvs_tutorial.
+
+
+This chapter describes the PatchMatch lineage of MVS algorithms that followed Gipuma @gipuma, COLMAP @colmap_mvs, and ACMH @acmh_acmm. The lineage is a set of MVS algorithms that build directly on top of these foundational methods, including references to them as baselines in their paper, refining these approaches, providing ablation studies, and by descending directly from their open-source implementations.
+
+
+== Multi-Hypothesis Joint View Selection (ACMH) <lit:acmh>
 
 Adaptive Checkerboard Multi-Hypothesis Joint View Selection (ACMH) #todo[acronym] inherits checkerboard from Gipuma and replaces the fixed sampling with adaptive sampling. It increases the sampled neighborhood by introducing new sampling directions. To avoid significantly increasing the number of candidates it changes the sampling positions for each pixel at every iteration, according to the current costs. A hypothesis from a reliable, well-textured pixel can then spread further and faster. This matters most in low-texture regions, where the nearest neighbours often carry poor hypotheses. @acmh_acmm
 
@@ -99,7 +105,7 @@ ACMM introduces a multi-scale reconstruction through image pyramids. Here, the p
 
 3D planes can regularly define textureless surfaces, especially in environments with human-made structures. Based on this assumption, ACMP's planar-prior model @acmp triangulates low-cost points of a photometric run into planes that are used as priors for subsequent iterations next to the geomtric consistency. Later, ACMMP @acmmp combines all mentioned strategies, the planar-prior model and the multi-scale reconstruction, into a single system totalling 12 passes per image.
 
-== ACM-lineage
+== ACM-lineage <sec:literature_review-acm-lineage>
 
 A large range of research has followed the introduction of the ACM-family methods. Partially because of the developing benchmarks such as ETH3D @eth3d_dataset and Tanks and Temples @tanks_and_temples_dataset, but more importantly due to their highly accessible open-source implementations. #ref(<fig-lineage>) shows the lineage of algorithms that this thesis audits. It is important to state that many other MVS algorithms exist. However, not many of these other algorithms feature open-source implementations while being top-performers on the ETH3D benchmark.
 
@@ -115,11 +121,13 @@ APD-MVS @apd builds directly on top of ACMH. It separates reliable and unreliabl
 
 == Cuda Multi-View Stereo from Fixstars
 
-CUMVS is an open-source, production-ready reimplementation of ACMM @acmh_acmm released by Fixstars Corporation. The work is directly focusing on the performance improvement and real world adaptability of the PatchMatch propagation. Its design in only documented by the source code and there is no accompanying paper. The authors state the aim to simplify the implementation as much as possible to incorporate the essence of recent PatchMatch algorithms. They improve the runtime speed 5.7x over ACMM, feature an OpenCV-style library with a typed API, and ships with a built-in C++ initializer for ETH3D instead of the Python converter regularly seen in other open-source implementations. #todo[Is this sentence relevant?]
+CUMVS @fixstars2025cumvs is an open-source, production-ready reimplementation of ACMM @acmh_acmm released by Fixstars Corporation. The work focuses on the performance improvement and real world adaptability of the PatchMatch propagation#footnote[Its design in only documented by the source code and there is no accompanying paper.]. The work improves the runtime speed 5.7x over ACMM, feature a library with an OpenCV compatible interface, and ships with a built-in C++ initializer for ETH3D instead of the Python converter regularly seen in other open-source implementations.
 
-The reimplementation comes with several algorithmic changes. It omits ACMM's joint bilateral upsampling and detail restorer, and replaces the Monte-Carlo pixelwise view selection with soft per-view weights. The homography is approximated, and is linearized around the patch window center to remove a division from the inner loop of the hotpath. They make several other optimizations, such as utilizing shared memory in GPU kernels for the sampling instead of naive texture fetching, and their per-view camera constants are precomputed in constant memory instead of rebuilding them inside the homography function. In their implementation, the depth and normal maps are kept in memory, where other methods tend to write them to disk and re-read them at every image pass.
+The reimplementation comes with several algorithmic changes. It omits ACMM's joint bilateral upsampling and detail restorer, and replaces the Monte-Carlo pixelwise view selection with soft per-view weights. The homography is approximated, and is linearized around the patch window center to remove a division from the inner loop of the kernel hotpath. They make several other optimizations, such as utilizing shared memory in GPU kernels for the sampling instead of naive texture fetching, and their per-view camera constants are precomputed in constant memory instead of rebuilding them inside the homography function. In their implementation, the depth and normal maps are kept in memory, where other methods tend to write them to disk and re-read them at every image pass.
 
-There are other work that focuses on performance improvements of the algorithms #todo[cite: MVP-Stereo: A Parallel Multi-View Patchmatch Stereo Method with Dilation Matching for Photogrammetric Application], however, these methods doesn't provide an open-source implementation, and they are comparing their speed to the inefficient author implementations of @acmh_acmm that were significantly surpassed by CUMVS without drops in quality.
+== MVS benchmarks
+
+There are many influential benchmarks in the field of 3D reconstruction all of them serving a different purpose. The Middlebury dataset @middlebury_dataset serves as the foundational work in creating a structured framework for evaulating two-view stereo algorithms. DTU MVS dataset @dtu_dataset uses a robotic arm to control the position of the camera. It provides no leaderboard to rank MVS algorithms and their performances. ETH3D @eth3d_dataset is dataset with natural, large-scale scenes, high-resolution images, and provided ground-truth camera parameters to directly evaluate MVS algorithms for pointcloud reconstruction. It showcases a leaderboard which is highly popular among MVS algorithms. Tanks and Temples @tanks_and_temples_dataset focuses on full 3D pipeline evaluation thus an evaluation requires camera parameter estimation as the first step. However, its leaderboard features many MVS algorithms that use COLMAP as their SfM ground truth @colmap_sfm. Both Tanks and Temples and ETH3D are actively used in published results. PatchMatch MVS methods report primarily on ETH3D @acmh_acmm @acmp @mp_mvs, and most recent ones on both benchmarks @acmmp @hpm @hpm_plusplus @apd @dpe @tsar @msp_mvs @dvp @dvp_plus_plus @apde, while learning-based MVS methods favour Tanks and Temples @yao2018_mvsnet @yao2019_rmvsnet @gu2020_casmvsnet.
 
 /*
 describes the lineage and selected methods that the thesis considers. shows and analyzes the algorithmic improvements and what added costs these have. Also analyzes the software source code a bit.

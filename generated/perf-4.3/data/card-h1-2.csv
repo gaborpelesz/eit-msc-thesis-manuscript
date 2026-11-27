@@ -1,0 +1,6 @@
+arm,vs,phase,n,mean_vs,mean_arm,delta,ci_lo,ci_hi
+h1-2,base2,run,3,1106.13,1007.33,-98.80,-103.69,-93.91
+h1-2,base2,input_load,3,156.35,57.73,-98.62,-101.53,-95.70
+h1-2,base2,device_upload,3,19.20,19.73,0.53,-0.27,1.33
+h1-2,base2,result_readback,3,15.82,16.00,0.18,-0.08,0.44
+h1-2,base2,patchmatch,3,822.58,822.87,0.28,-0.03,0.60

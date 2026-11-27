@@ -1,0 +1,13 @@
+group,base_s,cand_s,delta_s,launch_spread_lo,launch_spread_hi,n_launches,base_run,cand_run
+BlackPixelUpdateWeak,207.3865,207.3693,-0.0172,-0.0304,-0.0041,672,/home/gabor/thesis-data/bench/diag/production-apd-mvs/s43-class-c1-nsys-s1,/home/gabor/thesis-data/bench/diag/production-apd-mvs/s43-class-k13-nsys-s1
+RedPixelUpdateWeak,207.2022,207.1737,-0.0285,-0.0456,-0.0114,672,/home/gabor/thesis-data/bench/diag/production-apd-mvs/s43-class-c1-nsys-s1,/home/gabor/thesis-data/bench/diag/production-apd-mvs/s43-class-k13-nsys-s1
+BlackPixelUpdateStrong,10.7183,10.7163,-0.0020,-0.0036,-0.0004,672,/home/gabor/thesis-data/bench/diag/production-apd-mvs/s43-class-c1-nsys-s1,/home/gabor/thesis-data/bench/diag/production-apd-mvs/s43-class-k13-nsys-s1
+RedPixelUpdateStrong,10.7342,10.7309,-0.0033,-0.0065,-0.0001,672,/home/gabor/thesis-data/bench/diag/production-apd-mvs/s43-class-c1-nsys-s1,/home/gabor/thesis-data/bench/diag/production-apd-mvs/s43-class-k13-nsys-s1
+weak (Black+Red),414.5887,414.5429,-0.0457,-0.0707,-0.0208,672,/home/gabor/thesis-data/bench/diag/production-apd-mvs/s43-class-c1-nsys-s1,/home/gabor/thesis-data/bench/diag/production-apd-mvs/s43-class-k13-nsys-s1
+strong (Black+Red),21.4524,21.4471,-0.0053,-0.0092,-0.0014,672,/home/gabor/thesis-data/bench/diag/production-apd-mvs/s43-class-c1-nsys-s1,/home/gabor/thesis-data/bench/diag/production-apd-mvs/s43-class-k13-nsys-s1
+RANSACToGetFitPlane,3.6349,3.6343,-0.0006,-0.0024,0.0012,672,/home/gabor/thesis-data/bench/diag/production-apd-mvs/s43-class-c1-nsys-s1,/home/gabor/thesis-data/bench/diag/production-apd-mvs/s43-class-k13-nsys-s1
+DepthToWeak,41.9607,41.0380,-0.9228,-1.0800,-0.7655,224,/home/gabor/thesis-data/bench/diag/production-apd-mvs/s43-class-c1-nsys-s1,/home/gabor/thesis-data/bench/diag/production-apd-mvs/s43-class-k13-nsys-s1
+LocalRefine,0.1176,0.1176,-0.0001,-0.0003,0.0002,224,/home/gabor/thesis-data/bench/diag/production-apd-mvs/s43-class-c1-nsys-s1,/home/gabor/thesis-data/bench/diag/production-apd-mvs/s43-class-k13-nsys-s1
+GenNeighbours,12.3893,12.3884,-0.0009,-0.0036,0.0018,224,/home/gabor/thesis-data/bench/diag/production-apd-mvs/s43-class-c1-nsys-s1,/home/gabor/thesis-data/bench/diag/production-apd-mvs/s43-class-k13-nsys-s1
+propagation,439.6760,439.6243,-0.0516,-0.0773,-0.0260,672,/home/gabor/thesis-data/bench/diag/production-apd-mvs/s43-class-c1-nsys-s1,/home/gabor/thesis-data/bench/diag/production-apd-mvs/s43-class-k13-nsys-s1
+run (all kernels),500.2931,499.3175,-0.9756,nan,nan,0,/home/gabor/thesis-data/bench/diag/production-apd-mvs/s43-class-c1-nsys-s1,/home/gabor/thesis-data/bench/diag/production-apd-mvs/s43-class-k13-nsys-s1
