@@ -1091,7 +1091,7 @@
   set footnote.entry(
     separator: block(height: 3.6pt, line(length: 0.4 * _textwidth, stroke: 0.4pt)),
     clearance: 10.8pt,
-    gap: 0pt,
+    gap: 0.5em,
     indent: 0pt,
   )
   show footnote.entry: it => {
