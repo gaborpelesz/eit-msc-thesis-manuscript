@@ -302,54 +302,93 @@
 //   (a) the evaluations of one update: every candidate plane in every source image, and which of
 //       them are multiplied by a view weight of zero,
 //   (b) the share of these evaluations for an unreliable pixel, from the counted view weights.
-// (a) is a sketch, not to scale: five source images instead of about ten, four candidate planes
-// per group instead of eight.
+// (a) is a sketch, not to scale: five source images instead of about ten, three candidate planes
+// per half instead of eight.
 #let _v = json("../../generated/perf-4.3/derived/numbers-prop.json").v
 #let _c-waste = rgb("#eb6834")
 #let _lab-z(body, ..args) = chart-label(8.5pt, body, ..args)
 
-// ---- (c) the evaluations of one update ---------------------------------------------------------------
-// One cell is one evaluation: one candidate plane in one source image. The two groups of rows are
-// the two halves of an update; the second half is only used multiplied by the view weight.
+// ---- (a) the evaluations of one update ---------------------------------------------------------------
+// One tile is one evaluation: one candidate plane in one source image. The picture reads from top
+// to bottom, as the update runs: the first half, the view weights it yields, the second half. A
+// column is a source image. In the second half a column of weight zero is drawn as one hatched
+// band: its evaluations are computed and then multiplied by zero.
+// The colors are those of (b): dark blue serves the view selection, light blue carries a weight.
 #let _weights = (true, false, false, true, false)      // sketch: which source images have a weight above zero
-#let _rows = 4                                         // rows drawn per group
+#let _rows = 3                                         // rows drawn per half
+#let _c-waste-light = _c-waste.lighten(82%)
 #let _panel-grid(width) = cetz.canvas(length: 1pt, {
   import cetz.draw: *
   let w = width / 1pt
-  let (cw, ch, gx, gy) = (24, 10, 3, 3)                // a cell and the gaps
-  let x0 = 116                                         // left edge of the cells
-  let group-gap = 9
-  let h-head = 26
-  let h-group = _rows * ch + (_rows - 1) * gy
-  let total = h-head + 2 * h-group + group-gap
+  let (cw, ch, gx, gy) = (27, 11, 6, 3)                // a tile and the gaps
+  let x0 = 118                                         // left edge of the columns
+  let (h-head, h-chip, gap) = (17, 13, 15)             // head, weight chips, space around the chips
+  let h-half = _rows * ch + (_rows - 1) * gy
+  let (h-link, h-step) = (11, 15)                     // the arrow into the view selection, its box
+  let total = h-head + 2 * h-half + 2 * gap + h-chip + h-link + h-step
   let x(i) = x0 + i * (cw + gx)
   let x1 = x(_weights.len()) - gx
-  rect((0, 0), (w, total), stroke: none)               // fixes the canvas to the text width
-  // head: the source images and their view weights
-  content(((x0 + x1) / 2, total), anchor: "north", _lab[source images])
-  content((x0 - 8, total - 19), anchor: "east", _lab[view weight])
-  for (i, on) in _weights.enumerate() {
-    content((x(i) + cw / 2, total - 19), anchor: "center", _lab-z(if on [$> 0$] else [$0$], fill: if on { c-ink } else { _c-waste }, weight: if on { "regular" } else { "bold" }))
-  }
-  // the two groups
-  let groups = (
-    (label: [the candidate planes\ of the anchors], note: [evaluated in every source image:\ the view weights come from these costs], weighted: false),
-    (label: [current plane, planar\ prior, refined planes], note: [scored by the weighted mean of their costs:\ a cost with weight zero is discarded], weighted: true),
-  )
-  let top = total - h-head
-  for g in groups {
-    for r in range(_rows) {
-      let y = top - r * (ch + gy)
-      for (i, on) in _weights.enumerate() {
-        rect((x(i), y - ch), (x(i) + cw, y), fill: if g.weighted and not on { _c-waste } else { c-kernel }, stroke: none)
-      }
+  let (xl, xr) = (x0 - 12, x1 + 14)                    // where the labels end, where the notes begin
+  let label-l(y, body) = content((xl, y), anchor: "east", { set par(leading: 0.5em, justify: false); set align(right); body })
+  let note-r(y, body) = content((xr, y), anchor: "west", box(width: (w - xr) * 1pt, { set par(leading: 0.5em, justify: false); set align(left); body }))
+  // a band with diagonal hatching, clipped to the band by hand
+  let band(xa, ya, xb, yb) = {
+    rect((xa, ya), (xb, yb), fill: _c-waste-light, stroke: none)
+    let (bw, bh, step) = (xb - xa, yb - ya, 5)
+    for k in range(1, int((bw + bh) / step) + 1) {
+      let c = k * step                                 // the line x - xa + y - ya = c
+      let a = (xa + calc.min(c, bw), ya + c - calc.min(c, bw))
+      let b = (xa + c - calc.min(c, bh), ya + calc.min(c, bh))
+      line(a, b, stroke: 0.7pt + _c-waste)
     }
-    let (ya, yb) = (top, top - h-group)
-    line((x0 - 5, ya), (x0 - 8, ya), (x0 - 8, yb), (x0 - 5, yb), stroke: 0.5pt + c-muted)
-    content((x0 - 12, (ya + yb) / 2), anchor: "east", { set par(leading: 0.45em, justify: false); set align(right); _lab-z(g.label) })
-    content((x1 + 12, (ya + yb) / 2), anchor: "west", box(width: (w - x1 - 12) * 1pt, { set par(leading: 0.45em, justify: false); set align(left); _lab-z(g.note, fill: c-muted) }))
-    top = yb - group-gap
+    rect((xa, ya), (xb, yb), fill: none, stroke: 0.7pt + _c-waste)
   }
+  rect((0, 0), (w, total), stroke: none)               // fixes the canvas to the text width
+  // head: the columns are the source images
+  content(((x0 + x1) / 2, total), anchor: "north", _lab-z(fill: c-muted)[source images])
+  line((x0, total - 10), (x0, total - 12.5), (x1, total - 12.5), (x1, total - 10), stroke: 0.5pt + c-muted)
+  // the first half: every tile is used, by the view selection
+  let top = total - h-head
+  for r in range(_rows) {
+    let y = top - r * (ch + gy)
+    for i in range(_weights.len()) { rect((x(i), y - ch), (x(i) + cw, y), fill: c-kernel-dark, stroke: none) }
+  }
+  label-l(top - h-half / 2)[#_lab-z(weight: "bold")[Anchor plane \ candidates]]
+  note-r(top - h-half / 2, _lab-z(fill: c-muted)[evaluated in every source image])
+  // the costs of the first half feed the pixelwise view selection
+  let xm-all = (x0 + x1) / 2
+  let yb = top - h-half
+  line((x0, yb - 2), (x0, yb - 4.5), (x1, yb - 4.5), (x1, yb - 2), stroke: 0.5pt + c-muted)
+  line((xm-all, yb - 4.5), (xm-all, yb - h-link), stroke: 0.5pt + c-muted, mark: (end: (symbol: ">", fill: c-muted, scale: 0.45)))
+  let ys = yb - h-link
+  rect((x0, ys - h-step), (x1, ys), fill: luma(94%), stroke: 0.5pt + c-muted, radius: 2)
+  content((xm-all, ys - h-step / 2), anchor: "center", _lab-z[pixelwise view selection])
+  // the view weights, one chip per source image
+  let yc = ys - h-step - gap - h-chip / 2
+  for (i, on) in _weights.enumerate() {
+    let xm = x(i) + cw / 2
+    line((xm, yc + h-chip / 2 + gap - 3), (xm, yc + h-chip / 2 + 3), stroke: 0.5pt + c-muted, mark: (end: (symbol: ">", fill: c-muted, scale: 0.45)))
+    rect((x(i), yc - h-chip / 2), (x(i) + cw, yc + h-chip / 2), radius: h-chip / 2,
+      fill: if on { white } else { _c-waste-light }, stroke: 0.7pt + if on { c-kernel-dark } else { _c-waste })
+    content((xm, yc), anchor: "center", _lab-z(if on [$> 0$] else [$0$], fill: if on { c-kernel-dark } else { _c-waste }, weight: if on { "regular" } else { "bold" }))
+  }
+  label-l(yc, _lab-z(weight: "bold")[View weights])
+  // the second half: a column with a weight is used, a column of weight zero is one band
+  let top2 = yc - h-chip / 2 - gap
+  for (i, on) in _weights.enumerate() {
+    if on {
+      for r in range(_rows) {
+        let y = top2 - r * (ch + gy)
+        rect((x(i), y - ch), (x(i) + cw, y), fill: c-kernel-light, stroke: none)
+      }
+      line((x(i) + cw / 2, yc - h-chip / 2 - 3), (x(i) + cw / 2, top2 + 3), stroke: 0.5pt + c-muted, mark: (end: (symbol: ">", fill: c-muted, scale: 0.45)))
+    } else {
+      band(x(i), top2 - h-half, x(i) + cw, top2)
+      line((x(i) + cw / 2, yc - h-chip / 2 - 3), (x(i) + cw / 2, top2 + 3), stroke: 0.5pt + _c-waste, mark: (end: (symbol: ">", fill: _c-waste, scale: 0.45)))
+    }
+  }
+  label-l(top2 - h-half / 2)[#_lab-z(weight: "bold")[Other candidates]\ #_lab-z[current plane, planar\ prior, refined planes]]
+  note-r(top2 - h-half / 2)[#_lab-z(fill: c-muted)[scored by the weighted mean of their costs]\ #_lab-z(fill: _c-waste, weight: "bold")[always computed, then #sym.times 0]]
 })
 
 // ---- (d) the evaluations of an unreliable pixel -------------------------------------------------------
@@ -368,7 +407,7 @@
   rect((x1, y0), (x2, y0 + bar), fill: c-kernel-light, stroke: none)
   rect((x2, y0), (w, y0 + bar), fill: _c-waste, stroke: none)
   for v in (x1, x2) { line((v, y0), (v, y0 + bar), stroke: 0.6pt + white) }
-  content((x1 / 2, y0 + bar / 2), anchor: "center", _lab-z(fill: white)[#pct(_selection, 0) for the view selection])
+  content((x1 / 2, y0 + bar / 2), anchor: "center", _lab-z(fill: white)[#pct(_selection, 0) for the pixelwise view selection])
   content(((x1 + x2) / 2, y0 + bar / 2), anchor: "center", _lab[#pct(1 - _selection - _zero, 0) with a weight])
   content(((x2 + w) / 2, y0 + bar / 2), anchor: "center", _lab-z(fill: white, weight: "bold")[#pct(_zero, 0) multiplied by zero])
   let brace(a, b, body) = {
@@ -380,36 +419,21 @@
 })
 
 #let _title(tag, body) = block(below: 4pt, text(size: 8.5pt, top-edge: "cap-height", bottom-edge: "baseline")[*(#tag)* #body])
-#let _legend-zero = {
-  let sq(fill, stroke) = box(baseline: -1pt, width: 9pt, height: 5.5pt, fill: fill, stroke: stroke)
-  let item(mark, body) = box[#mark#h(3pt)#body]
-  (
-    item(sq(c-kernel, none))[evaluation],
-    item(sq(_c-waste, none))[evaluation multiplied by zero],
-  )
-}
-#let _legend(items) = {
-  set text(size: 8pt, top-edge: "cap-height", bottom-edge: "baseline")
-  items.join(h(8pt))
-}
-
 // The evaluations of one update and the share that is multiplied by zero: placed in the
 // subsection on the source images of zero weight.
 #let perf-prop-zero-figure = [#figure(
   kind: image,
   caption: flex-caption([
-    The evaluations of one update of an unreliable pixel, as a simplified sketch. *(a)* Every candidate plane is evaluated in every source image, although the second half of the candidates only uses the source images with a weight above zero. *(b)* Measured in the finest round: #pct(_zero, 0) of all evaluations are multiplied by zero.
+    The evaluations of one update of an unreliable pixel. *(a)* Every candidate plane is evaluated in every source image. First the anchor candidates are computed and they yield the view weights. Then, the remaining candidates are computed and scored with the weights. *(b)* From measurements: #pct(_zero, 0) of all evaluations are multiplied by zero in the implementation.
   ], [The evaluations of an update and those of zero weight]),
   layout(size => block(breakable: false, width: 100%, {
     set align(left)
     set par(leading: 0.3em, spacing: 0pt)
     set block(spacing: 0pt)
     _title("a")[One update: every candidate plane is evaluated in every source image]
-    v(3pt)
+    v(6pt)
     _panel-grid(size.width)
-    v(8pt)
-    _legend(_legend-zero)
-    v(12pt)
+    v(14pt)
     _title("b")[Measured: the evaluations of one unreliable pixel in the finest round]
     _panel-share(size.width)
   })),

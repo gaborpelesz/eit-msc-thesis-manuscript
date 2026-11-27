@@ -81,9 +81,8 @@
     content((x-text, y0 + 6), anchor: "west", _lab[4 tries,])
     content((x-text, y0 - 6), anchor: "west", _lab[4 different pixels])
   } else {
-    content((x-text, y0 + 12), anchor: "west", _lab[4 tries,])
-    content((x-text, y0), anchor: "west", _lab[the same pixel:])
-    content((x-text, y0 - 12), anchor: "west", _lab(fill: _c-waste, weight: "bold")[3 are repeats])
+    content((x-text, y0 + 6), anchor: "west", _lab[4 tries,])
+    content((x-text, y0 - 6), anchor: "west", _lab(fill: _c-waste, weight: "bold")[on the same pixel])
   }
 })
 
@@ -134,12 +133,12 @@
 #let perf-anchor-spokes-figure = [#figure(
   kind: image,
   caption: flex-caption([
-    The spoke search of `GenNeighbours` as a simplified sketch, and the work that the first change removes.
+    The spoke search of `GenNeighbours` as a simplified sketch, showing the removed redundant work.
     *(a)* Every sector around an unreliable pixel $p$ is searched along its spoke, in growing radius steps, until a probe finds a reliable pixel. Eight sectors are drawn; the kernel uses up to #_pr.spokes.last().
     *(b)* A radius step has four tries, and a random jitter spreads them over neighbouring pixels.
-    *(c)* In the two finest rounds the jitter is zero, and the four tries probe the same pixel.
-    *(d)* The measured result: of the tries that an unreliable pixel makes in the finest round, #pct((_pr.tries.last() - _pr.steps.last()) / _pr.tries.last(), 0) repeat a try that was already rejected (rounded means per pixel).
-  ], [The spoke search and its repeated tries]),
+    *(c)* In the two finest rounds the jitter is zero in the implementation, and the four tries probe the same pixel.
+    *(d)* The measured result: #pct((_pr.tries.last() - _pr.steps.last()) / _pr.tries.last(), 0) of finest round tries are redundant.
+  ], [The spoke search and its redundant neighbor searches]),
   layout(size => {
     let gap = 16pt
     let wa = 168pt
@@ -154,7 +153,7 @@
         grid(
           columns: (1fr,), row-gutter: 10pt,
           [#_title("b")[One radius step as designed: jitter spreads the tries]#_panel-step(wb, true)],
-          [#_title("c")[The same step in the two finest rounds: no jitter]#_panel-step(wb, false)],
+          [#_title("c")[Two finest radius steps as implemented: no jitter]#_panel-step(wb, false)],
         ),
       )
       v(7pt)
