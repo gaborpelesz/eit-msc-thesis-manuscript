@@ -78,10 +78,6 @@ Classical MVS algorithms perform the following steps: matching cost computation 
 
 Storing the cost volume, at least partially, is necessary to improve on the winner-takes-all approach. Besides, it requires to define the precision on the depth-range for the optimization ahead of time. The same problem arises in modern learned MVS approaches @apd, where the cost volume is calculated by a neural network using learned features and regularisation. Even though much progress has been made in order to reduce the memory requirements of these approaches, methods such as @yao2019_rmvsnet @gu2020_casmvsnet can still only compute the depth at a lower resolution or over a low precision depth-range, and has to fine-tune these through costly refinement approaches.
 
-
-
-
-
 == PatchMatch Multi-View Stereo <sec:bg-pm-mvs>
 
 The main focus of this thesis is an algorithm family called PatchMatch MVS, which became the dominant approach for large-scale complex scenes @colmap_mvs @gipuma @apd @acmh_acmm @acmmp @acmp @eth3d_dataset @dpe @dvp @dvp_plus_plus @apde @zhou2021_dp_mvs @hpm @hpm_plusplus. #ref(<ch-litreview>) analysis the history of 3D reconstruction algorithms, while the goal of this section is to introduce PatchMatch without an in-depth review of the long history of its predecessors.
@@ -91,7 +87,7 @@ The thesis differentiates between two fundamentally different problems in MVS:
 - large-scale reconstructions @furukawa2015_mvs_tutorial @colmap_mvs
 The former considers relatively small-scale indoor scanning, usually in more controlled environments (e.g., objects on a turn table @hernandez2004_silhouette_stereo_fusion). On the other hand, accurate large-scale outdoor scene reconstructions pose several challenges over these typical cases. One of these challenges is that objects are regularly found far away from the imaging device, requiring high-resolution imagery during MVS processing for surface details. Another challenge is that the number of required images grows with the size of the imaged scenes. Examples are reconstructing outdoor urban areas, drone-based mapping solutions, or reconstructing from large collections of unstructured internet photography.
 
-=== PatchMatch Stereo <sec:bg-patchmatch>
+=== Pixelwise plane estimation <sec:bg-patchmatch>
 
 Sweeping a plane parallel to the reference image assumes a surface also parallel to the image itself. This leads to _fronto-parallel bias_: on a slanted surface, the pixels of the matching window lie at different depths, so a single fronto-parallel plane cannot bring all of them into correspondence at once. These windows create ambiguous matches @gallup2007_plane_sweeping @gipuma.
 
