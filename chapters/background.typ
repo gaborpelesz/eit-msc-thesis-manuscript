@@ -117,7 +117,7 @@ The algorithm starts from randomly initialized planes in all pixels. The random 
   - Gipuma 2015: 50s -> 2.7s, a paper with great focus on PatchMatch efficiency, introduced the checkerboard propagation which created a highly efficient MVS algorithm. They also have a fast mode that uses algorithmic approximation
 */
 
-=== Modern 3D reconstruction with PatchMatch
+=== Modern 3D reconstruction with PatchMatch <sec:bg-modern-pm>
 
 Every modern PatchMatch MVS reconstruction system uses the following stages to compute a 3D point cloud @colmap_mvs @apd @acmh_acmm @acmmp @acmp @dpe @dvp @dvp_plus_plus @hpm @hpm_plusplus:
 + For each _reference image_ $I_r$, an *image-level view selection* algorithm selects $N$ neighboring _source images_ $I_j$, $j in cal(N)(r)$, from the set of all images $cal(M) = {1, dots, M}$, where $cal(N)(r) subset cal(M) without {r}$ and $|cal(N)(r)| = N$.
@@ -129,7 +129,7 @@ Every modern PatchMatch MVS reconstruction system uses the following stages to c
 Per reference image, cost is pixels × source views × patch taps × iterations × passes. The Literature Review can then place each lineage step as “multiplies term X”, using compendium §2.2’s numbers. That turns a list of papers into an argument.
 */
 
-==== Checkerboard propagation
+==== Checkerboard propagation <sec:bg-checkerboard>
 
 One of the core problems of early PatchMatch formulations was the sequential nature of the propagation scheme. Modern PatchMatch MVS algorithms use a diffusion-like _checkerboard_ propagation to parallelize across half of the pixels at the same time @gipuma, mapping well to GPUs. The propagation labels each pixel _red_ or _black_ in a checkerboard pattern and only the opposite colors are used for candidate hypotheses during updates (#ref(<fig-checkerboard>)a). The pattern ensures that while a pixel is being updated in an iteration, its neighbors are not, avoiding race conditions in the parallel case. More recent approaches use many candidate hypotheses to accelerate information propagation @gipuma.
 

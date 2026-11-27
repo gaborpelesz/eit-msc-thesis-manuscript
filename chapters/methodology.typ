@@ -304,14 +304,14 @@ ACMM algorithm:
       - run median filter on resulting depth map
 */
 
-The goal of the ACMM @acmh_acmm algorithm is to estimate one depth map per image. A _reference image_ $I_r$ defines the image being updated, at each step of the algorithm. The image-level view selection first assembles image collections by assigning a set of _source images_ $S_r$ to each $I_r$, with varying number of images included $n = |cal(S)_r| <= 20$, that are observing the same part of the scene. Every pixel $p$ of $I_r$ carries a _plane hypothesis_ $theta_p$, which gives a depth and a surface normal estimate. $theta_p$ defines a slanted image window centered around $p$ called a _patch_, and predicts where the patch appears in each source image $I_j in S_r$. The _matching cost_ $rho_j (theta_p)$ defines a metric to evaluate how good is the mapping of this _patch_ using the plane hypothesis. The cost in ACMM calculates a bilaterally weighted Zero-mean Normalized Cross-Correlation (ZNCC) between two grayscale images and their patches using each pixel's intensity value. The algorithm uses $rho_j (theta_p) = 1 - "zncc"_j (theta_p)$ to define the cost from the correlation, i.e., 0 is a perfect match while 2 is the worst. The weighted mean is taken across $S_r$ to combine all costs.
+ACMM @acmh_acmm algorithm is an improved PatchMatch-based MVS algorithm (#ref(<sec:bg-modern-pm>)). A _reference image_ $I_r$ defines the image being updated, at each step of the algorithm. The image-level view selection first assembles image collections by assigning a set of _source images_ $S_r$ to each $I_r$, with varying number of images included $n = |cal(S)_r| <= 20$, that are observing the same part of the scene (#ref(<sec:bench-converter>)). Every pixel $p$ of $I_r$ carries a _plane hypothesis_ $theta_p$, which gives a depth and a surface normal estimate. $theta_p$ defines a slanted image window centered around $p$ called a _patch_, and predicts where the patch appears in each source image $I_j in S_r$. The _matching cost_ $rho_j (theta_p)$ defines a metric to evaluate how good is the mapping of this _patch_ using the plane hypothesis. The cost in ACMM calculates a bilaterally weighted Zero-mean Normalized Cross-Correlation (ZNCC) between two grayscale images and their patches using each pixel's intensity value. The algorithm uses $rho_j (theta_p) = 1 - "zncc"_j (theta_p)$ to define the cost from the correlation, i.e., 0 is a perfect match while 2 is the worst. The weighted mean is taken across $S_r$ to combine all costs.
 
 $ "Cost"(theta_p, w_p) = (sum_(j in S_r) w_p_j dot rho_j (theta_p)) / (sum_(j in S_r) w_p_j), $ <eq:acmm-cost>
 
 where the view weights $w_p$ are different for each pixel that was set through the pixelwise joint view selection mechanism @acmh_acmm.
 
-The images of the scene are processed in a multi-scale image pyramid fashion from coarsest to finest. In ACMM's implementation and default parameters, there are 3 _scale_ levels in total. Each scale runs $1 + N_"geom"$ _passes_ over all reference images, where $N_"geom"$ is the number of geometric passes (ACMM default is $N_"geom" = 2$):
-- _photometric_ pass: uses only the bilateral ZNCC cost, starts from random planes or from the an upsampled previous scale result
+The images of the scene are processed in a multi-scale image pyramid fashion from coarsest to finest. In ACMM's implementation and default parameters, there are 3 _scale_ levels in total. Each scale runs $1 + N_"geom"$ _passes_ over all reference images, where $N_"geom"$ is the number of geometric passes (ACMM default is $N_"geom" = 2$) defined as follows:
+- _photometric_ pass: uses only the bilateral ZNCC cost, starts from random planes or from the  upsampled previous scale result
 - _geometric_ pass: starts from the result of the previous pass, and defines an additional geometric term in the cost that uses the source images' depth maps to calculate an additional reprojection error.
 
 #ref(<alg:acmm-reconstruction>) shows the high-level overview of the steps and it matches the outline that #ref(<table-timing-measurements>) proposed for time measurements.
@@ -330,7 +330,7 @@ The images of the scene are processed in a multi-scale image pyramid fashion fro
   )
 ] <alg:acmm-reconstruction>
 
-The core of the _ImagePass_ is the PatchMatch iterations running on device. The iterations are running the diffusion-like propagation, where each pixel is considered red or black based on its position in the checkerboard pattern (see #ref(<fig:acmm-sampling>)). This propagation scheme ensures that a pixel's neighbors are not updated and can be used without worrying about race conditions when updating each pixel concurrently.#footnote[This is the pattern of the ACMM paper, and the one APD-MVS implements. In ACMM's released code, five of the six distinct pixels of each V-shaped region have the color of $p$, so it reads pixels that are being updated at the same time.] 
+The core of the _ImagePass_ is the PatchMatch iterations running on device. The iterations are running the diffusion-like propagation introduced in #ref(<sec:bg-checkerboard>), where each pixel is considered red or black based on its position in the checkerboard pattern (see #ref(<fig-checkerboard>)a).
 
 #algorithm(caption: [ImagePass$(r, s, "phase")$: one reference image pass])[
   #algorithmic(
@@ -352,7 +352,7 @@ The core of the _ImagePass_ is the PatchMatch iterations running on device. The 
   )
 ] <alg:acmm-imagepass>
 
-The _ImagePass_ is responsible for initializing the current plane parameter estimates, either randomly, or from the previous state. The cost for the current estimates is always recalculated. Notice that PatchMatch can start from any initialization.
+The _ImagePass_ is responsible for initializing the current plane parameter estimates, either randomly, or from the previous state. The cost for the current estimates is always recalculated. Notice that PatchMatch can start from any initialization such as initial estimates from SfM points (#ref(<sec:image-based-3d>)).
 
 #figure(
   panel-candidates(size: 8.64),
@@ -361,7 +361,7 @@ The _ImagePass_ is responsible for initializing the current plane parameter esti
 
 The _UpdatePixel_ function (#ref(<alg:acmm-pixel>)) consists of four main steps: sampling, view selection, propagation, refinement.
 
-*Sampling* (adaptive checkerboard sampling) takes an input pixel with its current plane estimate and defines eight distinct _sampling areas_ that surround the pixel in four V-shaped regions (up, right, bottom, left), and four straight lines in each direction (#ref(<fig:acmm-sampling>)). For each pixel of each sampling area the algorithm calculates the matching cost across all source images, and from each area, the pixel with the lowest cost is taken as a candidate plane.
+*Sampling* (adaptive checkerboard sampling) takes an input pixel with its current plane estimate and defines eight distinct _sampling areas_ that surround the pixel in four V-shaped regions (up, right, bottom, left), and four straight lines in each direction (#ref(<fig:acmm-sampling>)). For each pixel of each sampling area the algorithm calculates the matching cost across all source images, and from each area, the pixel with the lowest cost is taken as a candidate plane.#footnote[In ACMM's released code, the V-shaped regions are offset by one pixel leading to multiple sampled pixels having the color of $p$. These pixels are updated in the same kernel launch, so the propagation reads costs and plane hypotheses creating a race condition in every propagation pass.] 
 
 *View selection* (multi-hypothesis joint view selection) decides which source images to trust based on two assumptions:
 1. Bad views generally have low photometric consistency across all eight sampling candidates while good views generally have at least some candidates with high consistency.
