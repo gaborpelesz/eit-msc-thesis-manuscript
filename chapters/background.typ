@@ -3,6 +3,7 @@
 #import "figures/epipolar.typ": epipolar-figure
 #import "figures/plane-sweep.typ": plane-sweep-figure
 #import "figures/patchmatch.typ": patchmatch-figure
+#import "figures/checkerboard.typ": checkerboard-figure
 
 = Background <ch-background>
 
@@ -66,7 +67,7 @@ The disadvantage of MVS is that the compute cost of matching grows linearly with
 === Plane-sweeping stereo <sec:background-plane-sweeping>
 
 
-Plane sweeping is one algorithm to calculate and aggregate the matching cost across multiple views @yang2003_realtime_stereo_gpu @collins1996_space_sweep. The method sweeps a plane, parallel to the reference image, through scene space with discrete steps (#ref(<fig-plane-sweep>)) in a depth range. For the current plane $Pi_d$ at depth $d$, a pixel $p$ along with it's matching window is back-projected onto the plane along its viewing ray and from there projected into the source images $I_j in S$. Notice, that doing this for every pixel is the same as projecting each source image onto the plane and viewing them from the reference camera (an optimization that maps well to modern GPUs @gallup2007_plane_sweeping). The photometric cost $rho(Pi_d, p)$ calculated is an entry of the _cost volume_ for $p$ at depth $d$. Every other plane gives another candidate on the ray (red circles), which falls elsewhere on the epipolar line of $p$ (blue circles). In a winner-takes-all approach, the depth with the lowest cost is kept and the cost volume recorded (local matching, see #ref(<sec:lit-mvs-approaches>)).
+Plane sweeping is one algorithm to calculate and aggregate the matching cost across multiple views @yang2003_realtime_stereo_gpu @collins1996_space_sweep. The method sweeps a plane, parallel to the reference image, through scene space with discrete steps (#ref(<fig-plane-sweep>)) in a depth range. For the current plane $Pi_d$ at depth $d$, a pixel $p$ along with it's matching window is back-projected onto the plane along its viewing ray and from there projected into the source images $I_j in S$. Notice, that doing this for every pixel is the same as projecting each source image onto the plane and viewing them from the reference camera (an optimization that maps well to modern GPUs @gallup2007_plane_sweeping). The photometric cost $rho(Pi_d, p)$ calculated is an entry of the _cost volume_ for $p$ at depth $d$. Every other plane gives another candidate on the ray (red circles), which falls elsewhere on the epipolar line of $p$ (blue circles). In a winner-takes-all approach, the depth with the lowest cost is kept and the cost volume recorded (local matching, see @ch-litreview).
 
 #place(auto, float: true, clearance: 22pt, plane-sweep-figure)
 
@@ -83,7 +84,7 @@ Storing the cost volume, at least partially, is necessary to improve on the winn
 
 == PatchMatch Multi-View Stereo <sec:bg-pm-mvs>
 
-The main focus of this thesis is an algorithm family called PatchMatch MVS, which became the dominant approach for large-scale complex scenes @colmap_mvs @gipuma @apd @acmh_acmm @acmmp @acmp @eth3d_dataset @dpe @dvp @dvp_plus_plus @apde @zhou2021_dp_mvs. #ref(<ch-litreview>) analysis the history of 3D reconstruction algorithms, while the goal of this section is to introduce PatchMatch without an in-depth review of the long history of its predecessors.
+The main focus of this thesis is an algorithm family called PatchMatch MVS, which became the dominant approach for large-scale complex scenes @colmap_mvs @gipuma @apd @acmh_acmm @acmmp @acmp @eth3d_dataset @dpe @dvp @dvp_plus_plus @apde @zhou2021_dp_mvs @hpm @hpm_plusplus. #ref(<ch-litreview>) analysis the history of 3D reconstruction algorithms, while the goal of this section is to introduce PatchMatch without an in-depth review of the long history of its predecessors.
 
 The thesis differentiates between two fundamentally different problems in MVS:
 - small-scene or object centric reconstructions @furukawa2015_mvs_tutorial @seitz2006_mvs_evaluation @dtu_dataset
@@ -107,7 +108,7 @@ Careful aggregation of the costs $rho_j (theta_p)$ over multiple source images i
 
 #place(auto, float: true, clearance: 22pt, patchmatch-figure)
 
-The algorithm starts from randomly initialized planes in all pixels. The random initialization draws $d_p$ from the depth range $[d_min, d_max]$ of the scene, given by the SfM sparse points (@sec:image-based-3d), and $bold(n)_p$ only from normals that face the reference camera @shen2013_patchmatch @gipuma. One _iteration_ goes through all pixels of $I_r$ once, from top-left to bottom-right, and the next iteration traverses them in the reverse order. For each pixel $p$ it compares the cost of its already visited neighbours' planes (e.g., the left and upper neighbours in a forward iteration) with the cost of its current plane, and adopts a neighbour's plane if its cost is lower (#ref(<fig-patchmatch>)b). Thus, the algorithm _propagates_ good hypotheses throughout the image. Propagation builds on the assumption that large regions of the scene are well approximated by the same plane, so a single good random guess in a region is enough, as the iterations spread it to the rest of the region @bleyer2011_patchmatch_stereo. Right after propagation, within the same iteration, the algorithm _refines_ the plane of $p$: it perturbs $d_p$ and $bold(n)_p$ randomly, takes the perturbed plane if it reduces the matching cost. The refinement repeats with a progressively smaller perturbation range, moving from correcting a wrong plane to capturing fine details. Moreover, refinement introduces new planes that propagation can pass on to the subsequent pixels. Three iterations are empirically sufficient for achieving good results @bleyer2011_patchmatch_stereo @gipuma. Alongside a _depth map_, PatchMatch MVS acquires a _normal map_ as its output from the estimated plane orientation in each pixel to further describe the observed surface.
+The algorithm starts from randomly initialized planes in all pixels. The random initialization draws $d_p$ from the depth range $[d_min, d_max]$ of the scene, given by the SfM sparse points (@sec:image-based-3d), and $bold(n)_p$ only from normals that face the reference camera @shen2013_patchmatch @gipuma. One _iteration_ goes through all pixels of $I_r$ once, from top-left to bottom-right, and the next iteration traverses them in the reverse order. Each pixel $p$ calculates its matching cost using its current plane and the cost of using the already visited neighbors' planes (e.g., the left and upper neighbours in a forward iteration). Next, it compares the costs and adopts a neighbour's plane if its cost is lower than its own (#ref(<fig-patchmatch>)b). Thus, the algorithm _propagates_ good hypotheses throughout the image. Propagation builds on the assumption that large regions of the scene are well approximated by the same plane, so a single good random guess in a region is enough, as the iterations spread it to the rest of the region @bleyer2011_patchmatch_stereo. Right after propagation, within the same iteration, the algorithm _refines_ the plane of $p$: it perturbs $d_p$ and $bold(n)_p$ randomly and takes the perturbed plane if it reduces the matching cost. The refinement repeats with a progressively smaller perturbation range, moving from correcting a wrong plane to capturing fine details. Moreover, refinement introduces new planes that propagation can pass on to the subsequent pixels. Three iterations are empirically sufficient for achieving good results @bleyer2011_patchmatch_stereo @gipuma. Alongside a _depth map_, PatchMatch MVS acquires a _normal map_ as its output from the estimated plane orientation in each pixel to further describe the observed surface.
 
 /*
 - patch match history:
@@ -120,14 +121,10 @@ The algorithm starts from randomly initialized planes in all pixels. The random 
   - Gipuma 2015: 50s -> 2.7s, a paper with great focus on PatchMatch efficiency, introduced the checkerboard propagation which created a highly efficient MVS algorithm. They also have a fast mode that uses algorithmic approximation
 */
 
-=== Modern PatchMatch systems
+=== Modern 3D reconstruction with PatchMatch
 
-One of the core problems of early PatchMatch formulations is the sequential nature of the propagation scheme. Some work has parallelized PatchMatch across rows and columns of images to improve the performance #todo[cite]. @gipuma introduces the checkerboard propagation to parallelize the algorithm which maps well to the multi-core GPU architecture. Their diffusion-like propagation works by calculating the costs and best candidates for half of the pixels at each iteration, and receiving plane candidates from a pixel's 4-neighborhood.
-
-PatchMatch uses the assumption that multiple pixels are present in the scene with similar depth thus a pixel can get good hypotheses by checking neighboring pixels. Empirically, the patch-match algorithm converges to a very good depth estimate after only a couple iterations @gipuma.
-
-Every modern PatchMatch MVS reconstruction system follows the same stages to compute a 3D point cloud @colmap_mvs:
-+ For each _reference image_ $I_r$, an *image-level view selection* algorithm selects $N$ neighbouring _source images_ $I_n$, $n in cal(N)(r)$, from the set of all images $cal(M) = {1, dots, M}$, where $cal(N)(r) subset cal(M) without {r}$ and $|cal(N)(r)| = N$.
+Every modern PatchMatch MVS reconstruction system uses the following stages to compute a 3D point cloud @colmap_mvs @apd @acmh_acmm @acmmp @acmp @dpe @dvp @dvp_plus_plus @hpm @hpm_plusplus:
++ For each _reference image_ $I_r$, an *image-level view selection* algorithm selects $N$ neighbouring _source images_ $I_j$, $j in cal(N)(r)$, from the set of all images $cal(M) = {1, dots, M}$, where $cal(N)(r) subset cal(M) without {r}$ and $|cal(N)(r)| = N$.
 + Given a reference image and its source images, a PatchMatch propagation algorithm iteratively *estimates and refines a depth map and a normal map*.
 + Consistent reference and source pixels from the depth maps are fused into a single 3D point cloud.
 
@@ -135,6 +132,13 @@ Every modern PatchMatch MVS reconstruction system follows the same stages to com
 4. A cost model
 Per reference image, cost is pixels × source views × patch taps × iterations × passes. The Literature Review can then place each lineage step as “multiplies term X”, using compendium §2.2’s numbers. That turns a list of papers into an argument.
 */
+
+==== Checkerboard propagation
+
+One of the core problems of early PatchMatch formulations was the sequential nature of the propagation scheme. Modern PatchMatch MVS algorithms use a diffusion-like _checkerboard_ propagation to parallize across half of pixels at the same time @gipuma, mapping well to GPUs. The propagation labels each pixel _red_ or _black_ in a checkerboard pattern and only the opposite colors are used for candidate hypotheses during updates (#ref(<fig-checkerboard>)a). The pattern ensures that while a pixel is being updated in an iteration, its neighbors are not, avoiding race conditions in the parallel case. More recent approaches use many candidate hypotheses to accelerate information propagation @gipuma.
+
+#place(auto, float: true, clearance: 22pt, checkerboard-figure)
+
 
 ==== View selection <sec:pixelwise-view-selection>
 
