@@ -25,7 +25,7 @@
 
   // Supervisor(s)' metadata
   supervisor: [Ádám István Szűcs], // internal supervisor's name
-  affiliation: [PhD Candidate \ Department of Computer Algebra], // internal supervisor's affiliation
+  affiliation: [Department of Computer Algebra], // internal supervisor's affiliation
   ext-supervisor: [Péter Torma, PhD], // external supervisor's name
   ext-affiliation: [aconic.ai], // external supervisor's affiliation
 
