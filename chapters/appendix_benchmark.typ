@@ -37,7 +37,7 @@
 
 = Detailed benchmark results <app-bench>
 
-#ref(<table-bench-phase-seconds>) gives the phase classes of #ref(<fig-bench-phases>) in seconds, #ref(<table-bench-phase-hpmpp>) compares HPM-MVS++ with HPM-MVS on the scenes HPM-MVS++ completed, and #ref(<table-bench-acmm-cumvs>) uses the phase classes to compare ACMM with CUMVS. The per-scene tables close the appendix: #ref(<table-bench-scene-time>) gives the runtime of every method on every scene, and #ref(<table-bench-scene-quality>) splits the F1 score of #ref(<fig-bench-scenes>) into accuracy and completeness at 2~cm, with the same split at 1~cm in #ref(<table-bench-scene-quality-1cm>), at 5~cm in #ref(<table-bench-scene-quality-5cm>) and at 10~cm in #ref(<table-bench-scene-quality-10cm>).
+#ref(<table-bench-phase-seconds>) gives the phase classes of #ref(<fig-bench-phases>) in seconds, #ref(<table-bench-phase-hpmpp>) compares HPM-MVS++ with HPM-MVS on the scenes HPM-MVS++ completed, and #ref(<table-bench-acmm-cumvs>) uses the phase classes to compare ACMM with CUMVS. The per-scene tables close the appendix: #ref(<table-bench-scene-time>) gives the runtime of every method on every scene, and #ref(<table-bench-scene-quality>) splits the F1-score of #ref(<fig-bench-scenes>) into accuracy and completeness at 2~cm, with the same split at 1~cm in #ref(<table-bench-scene-quality-1cm>), at 5~cm in #ref(<table-bench-scene-quality-5cm>) and at 10~cm in #ref(<table-bench-scene-quality-10cm>).
 
 
 #let _w = B.rep.worst_wall
