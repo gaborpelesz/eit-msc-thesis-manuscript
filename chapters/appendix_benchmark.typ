@@ -37,7 +37,7 @@
 
 = Detailed benchmark results <app-bench>
 
-#ref(<table-bench-phase-seconds>) gives the phase classes of #ref(<fig-bench-phases>) in seconds, #ref(<table-bench-phase-hpmpp>) compares HPM-MVS++ with HPM-MVS on the scenes HPM-MVS++ completed, and #ref(<table-bench-acmm-cumvs>) uses the phase classes to compare ACMM with CUMVS. The per-scene tables close the appendix: #ref(<table-bench-scene-time>) gives the runtime of every method on every scene, and #ref(<table-bench-scene-quality>) splits the F1-score of #ref(<fig-bench-scenes>) into accuracy and completeness at 2~cm, with the same split at 1~cm in #ref(<table-bench-scene-quality-1cm>), at 5~cm in #ref(<table-bench-scene-quality-5cm>) and at 10~cm in #ref(<table-bench-scene-quality-10cm>).
+#ref(<table-bench-phase-seconds>) gives the phase classes of #ref(<fig-bench-phases>) in seconds, #ref(<table-bench-phase-hpmpp>) compares HPM-MVS++ with HPM-MVS on the scenes HPM-MVS++ completed, and #ref(<table-bench-acmm-cumvs>) uses the phase classes to compare ACMM with CUMVS. #ref(<fig-bench-cumvs-apd>) compares CUMVS(APD) \@ native with APD-MVS scene by scene. The per-scene tables close the appendix: #ref(<table-bench-scene-time>) gives the runtime of every method on every scene, and #ref(<table-bench-scene-quality>) splits the F1-score of #ref(<fig-bench-scenes>) into accuracy and completeness at 2~cm, with the same split at 1~cm in #ref(<table-bench-scene-quality-1cm>), at 5~cm in #ref(<table-bench-scene-quality-5cm>) and at 10~cm in #ref(<table-bench-scene-quality-10cm>).
 
 
 #let _w = B.rep.worst_wall
@@ -162,6 +162,10 @@ CUMVS is a simplified reimplementation of ACMH and ACMM, and it makes the same #
     )
   },
 ) <table-bench-acmm-cumvs>
+
+#bench-figure("bench-cumvs-apd",
+  [CUMVS(APD) \@ native against APD-MVS, per scene, ordered by the speedup. (a) Speedup: the runtime of APD-MVS over that of CUMVS(APD) (ratio of the cell means, with #B.ci_level_pct% intervals); dashed: the ratio of the #(B.n_scenes)-scene totals, #times(B.ours.speedup.mean, 2). (b) Difference in F1 at 2~cm, CUMVS(APD) minus APD-MVS, with its #B.ci_level_pct% interval (Welch, #spell(B.n_rep) repeats each); filled: the interval excludes zero; dashed: the difference of the #(B.n_scenes)-scene means.],
+  [CUMVS(APD) against APD-MVS per scene], "fig-bench-cumvs-apd")
 
 // ---- per-scene tables, at the end of the appendix because of their size ---------------------------
 #_tab(b => b.scene_wall_s, none,
